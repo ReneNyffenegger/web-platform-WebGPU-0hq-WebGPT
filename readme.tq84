@@ -1,0 +1,45 @@
+
+loadModel (index.html)
+  -> initialize (model.js)
+     -> loadModel (model.js)
+        -> loadLayers (model.js)
+            -> loadLayer (model.js)
+               -> fetchAndInitTensor (model.js)
+
+------------------------------
+
+  fetchBin()
+     async function fetchBin(url) {
+       const response = await fetch(url);
+       const buffer = await response.arrayBuffer();
+       return new Float32Array(buffer);
+     }
+
+-----------------------------
+
+Tokenizer type BPE = Byte Pair Encoding
+
+this project knows two tokenizer types:
+  - char (only used for the shakespeare model)
+  - bpe
+
+Operations (see globals.js)
+  const FastMatMulBlock = new FastMatMulBlockClass();
+  const AttentionBlock  = new AttentionBlockClass();
+  const ResidualBlock   = new ResidualBlockClass();
+  const EmbedBlock      = new EmbedBlockClass();
+  const DeEmbedBlock    = new DeEmbedBlockClass();
+  const GeluBlock       = new GeluBlockClass();
+  const LayerNormBlock  = new LayerNormBlockClass();
+  const SoftmaxBlock    = new SoftmaxBlockClass();
+
+Some relationsships of parameters in loadParameters() (model.js)
+
+What is minBufferOffset (=1) used for?
+
+
+{ Files in the weights/xyz folder
+
+  transformer.wte.weight_gpt.bin          (loaded in loadEmbeddings() into variable embeddingsWeights )  - wte = Word token embeddings  - size = 38597376
+
+}
