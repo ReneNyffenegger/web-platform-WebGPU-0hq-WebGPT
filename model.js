@@ -21,11 +21,15 @@ class GPT {
   }
 
   async initialize() {
+    console.log('  initialize');
     if (this.initialized) return console.error("Model already initialized");
     if (!navigator.gpu) throw new Error("WebGPU is not supported");
 
     const adapter = await navigator.gpu.requestAdapter();
     this.device = await adapter.requestDevice();
+
+    console.log(`   device = ${this.device.constructor.name}`);
+    console.log(`   device.limits.maxStorageBufferBindingSize = ${this.device.limits.maxStorageBufferBindingSize /1024/1024} MB`);
 
     initializeOperations(this.device);
 
@@ -34,11 +38,13 @@ class GPT {
     await this.tokenizer.load();
 
     if (this.tokenizerType == "bpe") {
+      console.log('   tokenizerType = bpe');
       this.defaultPrompt = `What is the answer to life, the universe, and everything?\n`;
       this.defaultTopK = 3;
       this.defaultTemperature = 1;
       this.defaultTokens = 30;
     } else {
+      console.log('   tokenizerType != bpe');
       this.defaultPrompt = `WILL:\nAh, how dare you challenge me?\nHave you forgotten I built WebGPT?\n`;
       this.defaultTopK = 2;
       this.defaultTemperature = 1;
@@ -47,7 +53,7 @@ class GPT {
 
     this.initialized = true;
 
-    console.log("Model initialized");
+    console.log("  Model initialized");
   }
 
   async *generate(prompt, max_new_tokens, top_k, temperature) {
@@ -75,7 +81,7 @@ class GPT {
 
       // console.log(`\nIteration ${i + 1} of ${max_new_tokens}`);
       const lapsedTime = endTime - startTime;
-      console.log(`Kernel execution time: ${lapsedTime} ms`);
+//    console.log(`Kernel execution time: ${lapsedTime} ms`);
       i >= warmupRuns && (totalTime += lapsedTime);
 
       const { topKIndices, topKProbs } = selectTopK(logits, top_k);
@@ -268,9 +274,11 @@ class GPT {
   }
 
   async loadModel(folder) {
+
+    console.log(`    loadModel folder=${folder}`);
     if (this.initialized) return console.error("Model already loaded");
 
-    console.log("Loading model from folder:", folder);
+//  console.log("Loading model from folder:", folder);
     const weightsFolder = `weights/${folder}/`;
 
     const params = await this.loadParameters(weightsFolder);
@@ -287,8 +295,13 @@ class GPT {
   }
 
   async loadParameters(weightsFolder) {
-    console.log("Loading params...");
+    console.log('      loadParameters');
+//  console.log("Loading params...");
     const params = await (await fetch(`${weightsFolder}/params_gpt.json`)).json();
+    console.log(`       ${JSON.stringify(params)}`);
+    console.log(`       vocab_size: ${params.vocab_size}`);
+    console.log(`       n_embd:     ${params.n_embd}`);
+    console.log(`       n_ctx:      ${params.n_ctx}`);
 
     // Did you enable GitHub LFS? Won't work without it.
     if (params.n_embd % 4 !== 0) throw new Error("Model load failed: n_embd must be divisible by 4.");
@@ -296,7 +309,10 @@ class GPT {
     // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
     if ((params.n_embd / params.n_head) % 4 !== 0) throw new Error("Model load failed: n_embd / n_head must be divisible by 4.");
     const tokenParam = this.bufferSize(params.vocab_size, params.n_embd);
+    console.log(`       tokenParam = ${tokenParam}`);
     let minSplits = Math.ceil(tokenParam / this.device.limits.maxStorageBufferBindingSize);
+    console.log(`       minSplits = ${minSplits}`);
+
     function vocabChunkSizeCalc(vocab_size, n_embd, splits, maxStorageBufferBindingSize) {
       // Possibly could be better? Needs actual benchmarking to know what approach is best.
       const optimisticSize = Math.ceil(vocab_size / splits / 4) * 4 * n_embd;
@@ -310,7 +326,10 @@ class GPT {
       }
       return { vocab_chunk_size: vocab_chunk_size / n_embd, splits };
     }
+
     const { vocab_chunk_size, splits } = vocabChunkSizeCalc(params.vocab_size, params.n_embd, minSplits, this.device.limits.maxStorageBufferBindingSize);
+    console.log(`       vocab_chunk_size = ${vocab_chunk_size}, splits = ${splits}`);
+
     if (splits > minSplits) console.warn(`Non-optimal number of vocab splits. Optimal: ${minSplits}, Selected: ${splits}`);
 
     // Set derived parameters
@@ -331,14 +350,17 @@ class GPT {
     if (params.n_embd * params.n_embd * 3 > maxBufferSize)
       console.warn("Model load failed: n_embd * n_embd * 3 must be less than maxStorageBufferBindingSize.");
 
-    console.log("Params:", params);
+//  console.log("Params:", params);
+    console.log("       Params:", params);
 
     return params;
   }
 
   async loadEmbeddings(params, weightsFolder) {
-    console.log("Loading token embeddings...");
+    console.log('      loadEmbeddings');
+//  console.log("Loading token embeddings...");
     const embeddingWeights = await fetchBin(`${weightsFolder}/transformer.wte.weight_gpt.bin`);
+    console.log(`       embeddingWeights length = ${embeddingWeights.length} byteLength = ${embeddingWeights.byteLength}`);
 
     // Chunks are stored in row-major order and are of dimensions n_embd x vocab_chunk_size.
     // Embedding weights are imported in column-major order and are of dimensions vocab_size x n_embd.
@@ -346,7 +368,8 @@ class GPT {
     const embeddingsBuffers = [];
     const deEmbeddingsBuffers = [];
     for (let i = 0; i < params.vocab_chunk_instances; i++) {
-      console.log(`Loading deEmbedding chunk ${i + 1}/${params.vocab_chunk_instances}...`);
+      console.log(`       Loading deEmbedding chunk ${i+1}/${params.vocab_chunk_instances}`);
+//    console.log(`Loading deEmbedding chunk ${i + 1}/${params.vocab_chunk_instances}...`);
       const offset = i * params.vocab_chunk_size;
       let size = params.vocab_chunk_size;
 
@@ -482,12 +505,13 @@ class GPT {
   }
 
   async fetchAndInitTensor(url, dims, ops) {
-    console.log("Fetching and initializing tensor...", url);
+//  console.log("Fetching and initializing tensor...", url);
     const data = await fetchBin(url);
     return this.initTensor(data, dims, ops);
   }
 
   initTensor(data, dims, ops) {
+    console.log(`          initTensor, data = ${data.constructor.name}, dims = ${dims.constructor.name}, ops = ${ops.constructor.name}`);
     const buffer = this.device.createBuffer({
       size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
@@ -506,8 +530,10 @@ class GPT {
 
   bufferSize(dimX, dimY = 1, dimZ = 1) {
     const size = Math.ceil((dimX * dimY * dimZ * Float32Array.BYTES_PER_ELEMENT) / this.minBufferOffset) * this.minBufferOffset;
+    console.log(`            buffersSize = ${Math.round(100*size/1024/1024)/100} MB = ${dimX} * ${dimY} * ${dimZ} * 4 (Float32Array.BYTES_PER_ELEMENT = ${Float32Array.BYTES_PER_ELEMENT}).`)
     if (size > this.device.limits.maxStorageBufferBindingSize)
-      console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
+//    console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
+      console.warn("                Warning: Buffer size exceeds GPU limit");
     return size;
   }
 }

@@ -2,10 +2,6 @@
 <html>
   <head>
     <title>WebGPU GPT Model Demo</title>
-    <meta
-      http-equiv="origin-trial"
-      content="Anx9P4m5tzLOL/wLICKy/mA+DRyoSsTkyqmnK5t+S7oyw7A2SeBI2jO4LKqoQiQgChP2MTtqMNKofelMwvGtPQsAAABKeyJvcmlnaW4iOiJodHRwczovL2ttZWFucy5vcmc6NDQzIiwiZmVhdHVyZSI6IldlYkdQVSIsImV4cGlyeSI6MTY5MTcxMTk5OX0="
-    />
     <script src="tokenizer.js"></script>
     <script src="instructions.js"></script>
     <script src="model.js"></script>
@@ -99,10 +95,13 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
       }
 
       async function loadModel(folder, tokenizer) {
+console.log(`loadModel, folder = ${folder}`);
         setModelButtonDisabled(true);
 
+console.log(` new GPT`);
         GPTModel = new GPT(folder, tokenizer);
         await GPTModel.initialize();
+console.log(` GPT model is initialized`);
 
 
         promptTextarea.value = GPTModel.defaultPrompt;
@@ -119,6 +118,7 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
         updateVisualsButton.disabled = false;
 
         if (!visuals) {
+console.log(` !visuals, create one`);
           visuals = new Visuals(GPTModel);
           visuals.init();
           visuals.render();

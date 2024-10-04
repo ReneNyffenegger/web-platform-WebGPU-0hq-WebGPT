@@ -10,6 +10,7 @@ class Block {
   }
 
   initialize(device) {
+    console.log(`         initialize device in Block`);
     this.device = device;
     this.initBindGroups();
     this.pipelineCache = new Map();
@@ -18,6 +19,7 @@ class Block {
   }
 
   initBindGroup(layout, buffers, label = "") {
+    console.log(`        Block.initBindGroup, layout = ${layout}`);
     return this.device.createBindGroup({
       layout,
       entries: buffers.map((buffer, i) => ({
@@ -82,6 +84,7 @@ class Block {
 
   // Could be removed with auto bind groups, currently initializing everytime so probably slowing things down.
   initBindGroups() {
+    console.log(`           Block.initBindGroups`);
     const bg = (types) =>
       this.device.createBindGroupLayout({
         entries: types.map((entry, i) => ({

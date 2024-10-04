@@ -11,7 +11,11 @@ const SoftmaxBlock = new SoftmaxBlockClass();
 let operations = [FastMatMulBlock, AttentionBlock, ResidualBlock, EmbedBlock, DeEmbedBlock, GeluBlock, LayerNormBlock, SoftmaxBlock];
 
 function initializeOperations(device) {
-  for (const operation of operations) operation.initialize(device);
+  console.log('    initializeOperations')
+  for (const operation of operations) {
+    console.log(`       op: ${operation.constructor.name}`)
+    operation.initialize(device);
+  }
 }
 
 function destroyOperationBuffers() {
@@ -37,8 +41,11 @@ const bufferUsageDict = {
 // ---------------- Helper Functions ----------------
 
 async function fetchBin(url) {
+  console.log(`        fetchBin ${url}`);
   const response = await fetch(url);
+  console.log(`          response = ${response.constructor.name}`)
   const buffer = await response.arrayBuffer();
+  console.log(`          buffer = ${buffer.constructor.name}, byteLength = ${buffer.byteLength} "length" = ${buffer.byteLength / 4}`)
   return new Float32Array(buffer);
 }
 
