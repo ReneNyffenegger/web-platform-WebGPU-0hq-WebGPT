@@ -12,6 +12,8 @@ loadModel (index.html)
            returns { embeddingsBuffers, deEmbeddingsBuffers}
 
         -> loadPositionalEmbeddings()
+           Fetches transformer.wpe.weight_gpt.bin
+
         -> loadLayers()
         -> loadFinalLayerNorm()
 
@@ -86,5 +88,8 @@ What is minBufferOffset (=1) used for?
 { Function initTensor
 
   calls device.createBuffer
+
+  The third parameter (ops) is an array of strings which indicate
+  members of the GPUBufferUsage enum (see bufferUsageDict in globals.js)
 
 }

@@ -283,10 +283,12 @@ class GPT {
 
     const params = await this.loadParameters(weightsFolder);
     const { embeddingsBuffers, deEmbeddingsBuffers } = await this.loadEmbeddings(params, weightsFolder);
+//  console.log(`     loadEmbeddings returned embeddingsBuffers.length = ${embeddingsBuffers.length}, deEmbeddingsBuffers.length = ${deEmbeddingsBuffers.length}`);
+
     const { posEmbdBuffer } = await this.loadPositionalEmbeddings(params, weightsFolder);
     const layer_buffers = await this.loadLayers(params, weightsFolder);
 
-    console.log("Loading final layer norm...");
+//  console.log("Loading final layer norm...");
     const { normGammaBuffer, normBetaBuffer } = await this.loadFinalLayerNorm(params, weightsFolder);
 
     const output = { layer_buffers, embeddingsBuffers, deEmbeddingsBuffers, posEmbdBuffer, normGammaBuffer, normBetaBuffer };
@@ -425,7 +427,9 @@ class GPT {
       layerPromises.push(this.loadLayer(params, weightsFolder, i));
     }
 
+    console.log('       *await Promise.all(layerPromises)')
     const layer_buffers = await Promise.all(layerPromises);
+    console.log(`       *await ended, layer_buffers.length = ${layer_buffers.lengty}`)
     return layer_buffers;
   }
 
@@ -488,8 +492,6 @@ class GPT {
     const qWeights = transpose(data.subarray(0, dims[0] * dims[0]), dims[0], dims[0]);
     const kWeights = transpose(data.subarray(dims[0] * dims[0], dims[0] * dims[0] * 2), dims[0], dims[0]);
     const vWeights = transpose(data.subarray(dims[0] * dims[0] * 2, dims[0] * dims[0] * 3), dims[0], dims[0]);
-
-    const qWeightsBuffer = this.initTensor(qWeights, [dims[0], dims[0]], ops);
     const kWeightsBuffer = this.initTensor(kWeights, [dims[0], dims[0]], ops);
     const vWeightsBuffer = this.initTensor(vWeights, [dims[0], dims[0]], ops);
 
@@ -522,12 +524,15 @@ class GPT {
 //  dims: an Array  
 //  ops:  an Array
 //
+
+    let tq84_size = this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1);
     let tq84 = {
-      size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
+      size: tq84_size,
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
       mappedAtCreation: true,
     };
-    console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
+//  console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
+    console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
     const buffer = this.device.createBuffer({
       size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
