@@ -29,7 +29,7 @@ class GPT {
     this.device = await adapter.requestDevice();
 
     console.log(`   device = ${this.device.constructor.name}`);
-    console.log(`   device.limits.maxStorageBufferBindingSize = ${this.device.limits.maxStorageBufferBindingSize /1024/1024} MB`);
+    console.log(`   device.limits.maxStorageBufferBindingSize = ${this.device.limits.maxStorageBufferBindingSize} (${this.device.limits.maxStorageBufferBindingSize /1024/1024} MB)`);
 
     initializeOperations(this.device);
 
@@ -309,7 +309,7 @@ class GPT {
     // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
     if ((params.n_embd / params.n_head) % 4 !== 0) throw new Error("Model load failed: n_embd / n_head must be divisible by 4.");
     const tokenParam = this.bufferSize(params.vocab_size, params.n_embd);
-    console.log(`       tokenParam = ${tokenParam}`);
+    console.log(`       tokenParam = ${tokenParam} (vocab_size * n_embd * 4 = ${params.vocab_size * params.n_embd * 4})`);
     let minSplits = Math.ceil(tokenParam / this.device.limits.maxStorageBufferBindingSize);
     console.log(`       minSplits = ${minSplits}`);
 
@@ -372,11 +372,14 @@ class GPT {
 //    console.log(`Loading deEmbedding chunk ${i + 1}/${params.vocab_chunk_instances}...`);
       const offset = i * params.vocab_chunk_size;
       let size = params.vocab_chunk_size;
+      console.log(`       offset = ${offset}, size = ${size}`);
 
       const paddedArray = new Float32Array(params.vocab_chunk_size * params.n_embd);
       if (i === params.vocab_chunk_instances - 1) {
         size = params.vocab_size - offset;
-        paddedArray.set(size * params.n_embd, zeros((params.vocab_chunk_size * params.vocab_chunk_instances - params.vocab_size) * params.n_embd));
+        console.log(`       i === params.vocab_chunk_instances -1: size = ${size} = params.vocab_size - offset`);
+//      paddedArray.set(size * params.n_embd, zeros((params.vocab_chunk_size * params.vocab_chunk_instances - params.vocab_size) * params.n_embd));
+//      paddedArray.set(zeros((params.vocab_chunk_size * params.vocab_chunk_instances - params.vocab_size) * params.n_embd), size * params.n_embd);
       }
       paddedArray.set(embeddingWeights.subarray(offset * params.n_embd, offset * params.n_embd + size * params.n_embd));
 
@@ -390,7 +393,8 @@ class GPT {
   }
 
   async loadPositionalEmbeddings(params, weightsFolder) {
-    console.log("Loading positional embeddings...");
+//  console.log("Loading positional embeddings...");
+    console.log('      loadPositionalEmbeddings');
     const posEmbeddings = await fetchBin(`${weightsFolder}/transformer.wpe.weight_gpt.bin`);
     const posEmbdBuffer = this.initTensor(posEmbeddings, [params.n_ctx, params.n_embd], ["copy_from"]);
 
@@ -398,7 +402,8 @@ class GPT {
   }
 
   async loadFinalLayerNorm(params, weightsFolder) {
-    console.log("Loading final norm...");
+//  console.log("Loading final norm...");
+    console.log('      loadFinalyLayerNorm');
     const prefix = `${weightsFolder}/transformer.ln_f.`;
 
     const tensorPromises = [
@@ -412,7 +417,8 @@ class GPT {
   }
 
   async loadLayers(params, weightsFolder) {
-    console.log("Loading layers...");
+//  console.log("Loading layers...");
+    console.log('      loadLayers');
     const layerPromises = [];
 
     for (let i = 0; i < params.n_layer; i++) {
@@ -511,7 +517,17 @@ class GPT {
   }
 
   initTensor(data, dims, ops) {
-    console.log(`          initTensor, data = ${data.constructor.name}, dims = ${dims.constructor.name}, ops = ${ops.constructor.name}`);
+//
+//  data: a  Float32Array
+//  dims: an Array  
+//  ops:  an Array
+//
+    let tq84 = {
+      size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
+      usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+      mappedAtCreation: true,
+    };
+    console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
     const buffer = this.device.createBuffer({
       size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),

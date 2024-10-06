@@ -41,11 +41,9 @@ const bufferUsageDict = {
 // ---------------- Helper Functions ----------------
 
 async function fetchBin(url) {
-  console.log(`        fetchBin ${url}`);
-  const response = await fetch(url);
-  console.log(`          response = ${response.constructor.name}`)
+  const response = await fetch(url);  // Returns a Response object
   const buffer = await response.arrayBuffer();
-  console.log(`          buffer = ${buffer.constructor.name}, byteLength = ${buffer.byteLength} "length" = ${buffer.byteLength / 4}`)
+  console.log(`          fetchBin(${url}) -> buffer = ${buffer.constructor.name}, byteLength = ${buffer.byteLength} "length" = ${buffer.byteLength / 4}`)
   return new Float32Array(buffer);
 }
 

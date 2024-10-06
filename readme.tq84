@@ -83,3 +83,8 @@ What is minBufferOffset (=1) used for?
 
 
 }
+{ Function initTensor
+
+  calls device.createBuffer
+
+}
