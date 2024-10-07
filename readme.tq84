@@ -1,5 +1,6 @@
+vi: foldmethod=marker foldmarker={{{,}}}
 
-loadModel (index.html)
+loadModel (index.html)             Note: there's a function loadModel in index.html AND in model.             Note: there's a function loadModel in index.html AND in model.js
   -> initialize (model.js)
      -> loadModel (model.js)
 
@@ -35,6 +36,8 @@ loadModel (index.html)
             -> loadLayer (model.js)
                -> fetchAndInitTensor (model.js)
 
+     -> assign tokenizer (new GPT2Tokenizer or new SimpleTokenizer)    ( See https://github.com/latitudegames/GPT-3-Encoder for GPT2Tokenizer)
+
 ------------------------------
 
   fetchBin()
@@ -43,6 +46,121 @@ loadModel (index.html)
        const buffer = await response.arrayBuffer();
        return new Float32Array(buffer);
      }
+
+-----------------------------
+
+Tokenizer {{{
+
+  
+GPT2Tokenizer
+  Interesting methods:
+     - getVocabSize()
+     - load()               
+        bpe_file <- weights/tokenization/vocab.bpe
+        encoder  <- weights/tokenization/gpt_tokens.json
+
+
+   vocab.bpe has
+    50000 interesting lines
+    + 256 byte base tokens
+    +   1 special end-of-text token
+   -----
+    50257 = vocab size 
+
+
+   {{{ In the console
+
+
+       tk = new GPT2Tokenizer();
+       tk.load();
+
+
+       GPTModel.tokenizer.encode('$'   ); //  ->   3 (see gpt_tokens.json)
+       tk                .encode('$'   ); //  ->   3 (see gpt_tokens.json)
+       GPTModel.tokenizer.encode('ly'  ); //  -> 306
+       GPTModel.tokenizer.encode('roly'); //  -> 305, 306
+       tk.encode("\u0120");               //  -> [undefined, 254]
+
+       tk.vocab_size; // -> 50257
+
+       tk.encode("hello world. Hello World. hello,world.")
+       --> [31373, 995, 13, 18435, 2159, 13, 23748, 11, 6894, 13]
+       tk.decode([31373, 995, 13, 18435, 2159, 13, 23748, 11, 6894, 13])
+       --> hello world. Hello World. hello,world.
+
+       tk.encode('1234abcd 1234 abcd');
+       -> [1065, 2682, 397, 10210, 1105, 2682, 450, 10210]
+       tk.encode('1234abcd   1234 abcd');
+       -> [1065, 2682, 397, 10210, 220, 220, 1105, 2682, 450, 10210]
+
+
+       tk.bpe_ranks['Ġ,f']; // -> 21 (See line 21 in vocab.bpe)
+
+
+   }}}
+
+   {{{ Regexp /'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+/gu
+
+     Purpose:
+         This regular expression is designed to split input text into meaningful tokens for the GPT-2 model, handling various types of input like:
+
+       's|'t|'re|'ve|'m|'ll|'d:
+
+          Matches common English contractions like:
+             's (e.g., "it's", "he's")
+             't (e.g., "don't", "can't")
+             're (e.g., "they're")
+             've (e.g., "we've")
+             'm (e.g., "I'm")
+             'll (e.g., "she'll", "I'll")
+             'd (e.g., "he'd", "you'd")
+                 This part ensures that contractions are treated as separate tokens.
+
+        ?\p{L}+:
+
+          \p{L} matches any kind of letter from any language (when used with /u)
+          + ensures it matches one or more letters.
+ 
+          The preceding ? means it optionally matches a space before the letters, which ensures that words are tokenized properly while keeping any leading spaces as part of the token (if needed).
+
+       ?\p{N}+:
+
+           \p{N} matches any numeric character
+          + ensures it matches one or more digits.
+          The optional leading space ( ?) handles numbers in the same way as letters.
+
+      ?[^\s\p{L}\p{N}]+:
+
+          ^\s\p{L}\p{N} matches anything that is not a whitespace character (\s), a letter (\p{L}), or a number (\p{N}).
+
+          This part is for handling punctuation, symbols, or other non-alphanumeric characters.
+
+          The optional leading space ensures any punctuation or special characters that appear with spaces (e.g., " ,") are handled properly.
+
+      \s+(?!\S):
+
+         \s+ matches one or more whitespace characters.
+
+         (?!\S) is a negative lookahead that ensures the whitespace is followed by nothing (i.e., end of input) or more whitespace.
+         This part likely handles trailing spaces or empty spaces, preventing excessive whitespace from being tokenized as a separate token.
+
+      \s+:
+
+          Matches one or more spaces, ensuring spaces are tokenized separately when necessary.
+
+      Flags:
+         - g: Global flag, meaning it will search for all matches in the input, not just the first one.
+         - u: Unicode flag, enabling support for Unicode in the regex (this is crucial for \p{L} and \p{N} to work properly).
+
+
+    }}}
+
+
+}}}
+-----------------------------
+
+Visuals
+  The canvas seems to display n_ebmd * n_ctx dots
 
 -----------------------------
 

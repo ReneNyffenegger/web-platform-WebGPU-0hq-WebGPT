@@ -492,6 +492,8 @@ class GPT {
     const qWeights = transpose(data.subarray(0, dims[0] * dims[0]), dims[0], dims[0]);
     const kWeights = transpose(data.subarray(dims[0] * dims[0], dims[0] * dims[0] * 2), dims[0], dims[0]);
     const vWeights = transpose(data.subarray(dims[0] * dims[0] * 2, dims[0] * dims[0] * 3), dims[0], dims[0]);
+
+    const qWeightsBuffer = this.initTensor(qWeights, [dims[0], dims[0]], ops);
     const kWeightsBuffer = this.initTensor(kWeights, [dims[0], dims[0]], ops);
     const vWeightsBuffer = this.initTensor(vWeights, [dims[0], dims[0]], ops);
 

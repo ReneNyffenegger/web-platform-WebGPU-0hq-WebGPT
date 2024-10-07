@@ -55,13 +55,15 @@ class GPT2Tokenizer extends Tokenizer {
   }
 
   async load() {
-    console.log("Loading GPT2 tokenizer...");
+    console.log('    Loading GPT2 tokenizer');
+//  console.log("Loading GPT2 tokenizer...");
 
     const bpe_file = await (await fetch("weights/tokenization/vocab.bpe")).text();
     const encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
     this.encoder = encoder;
 
-    console.log("Building decoder...");
+//  console.log("Building decoder...");
+    console.log('     Building decoder');
     const decoder = {};
     Object.keys(encoder).map((x) => {
       decoder[encoder[x]] = x;
@@ -69,11 +71,13 @@ class GPT2Tokenizer extends Tokenizer {
     this.decoder = decoder;
 
     const lines = bpe_file.split("\n");
+    console.log(`     lines.length = ${lines.length}`);
     const bpe_merges = lines.slice(1, lines.length - 1).map((x) => {
       return x.split(/(\s+)/).filter(function (e) {
         return e.trim().length > 0;
       });
     });
+    console.log(`     bpe_merges.length = ${bpe_merges.length}`);
 
     const byte_encoder = bytes_to_unicode();
     const byte_decoder = {};
@@ -93,6 +97,7 @@ class GPT2Tokenizer extends Tokenizer {
     let bpe_tokens = [];
     const matches = Array.from(text.matchAll(this.pat)).map((x) => x[0]);
     for (let token of matches) {
+      console.log(`  token = ${token}`);
       const encoded_bytes = this.textEncoder.encode(token);
       let bytes = [];
       for (let i = 0; i < encoded_bytes.length; i++) {
