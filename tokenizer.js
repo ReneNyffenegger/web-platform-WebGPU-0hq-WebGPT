@@ -192,10 +192,14 @@ const dictZip = (x, y) => {
 const bytes_to_unicode = () => {
 console.log(`  bytes_to_unicode`);
   const bs = range(ord("!"), ord("~") + 1).concat(range(ord("¡"), ord("¬") + 1), range(ord("®"), ord("ÿ") + 1));
+//                      33 ,     126                        161 ,     172                  174 ,    255
   let cs = bs.slice();
+  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}`);
   let n = 0;
   for (let b = 0; b < 2 ** 8; b++) {
+    console.log(`   b=${b}`);
     if (!bs.includes(b)) {
+      console.log(`   b is not included in bs`);
       bs.push(b);
       cs.push(2 ** 8 + n);
       n = n + 1;

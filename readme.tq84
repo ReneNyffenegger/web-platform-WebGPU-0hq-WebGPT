@@ -469,11 +469,16 @@ What is minBufferOffset (=1) used for?
 
 
 }
-{ Function initTensor
+{{{ Function initTensor
 
   calls device.createBuffer
 
   The third parameter (ops) is an array of strings which indicate
   members of the GPUBufferUsage enum (see bufferUsageDict in globals.js)
 
-}
+}}}
+{{{ Links
+
+   GPT2 From Scratch In C++ - Part 1 - Tokenization    -> https://www.daoplays.org/blog/gpt2_p1 
+
+}}}
