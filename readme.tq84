@@ -68,29 +68,31 @@ GPT2Tokenizer
     50257 = vocab size 
 
 
+   The method bpe(token) takes a string and returns a string
+
    {{{ In the console
 
 
-       tk = new GPT2Tokenizer();
-       tk.load();
+       tk84 = new GPT2Tokenizer();
+       tk84.load();
 
 
        GPTModel.tokenizer.encode('$'   ); //  ->   3 (see gpt_tokens.json)
-       tk                .encode('$'   ); //  ->   3 (see gpt_tokens.json)
+       tk84              .encode('$'   ); //  ->   3 (see gpt_tokens.json)
        GPTModel.tokenizer.encode('ly'  ); //  -> 306
        GPTModel.tokenizer.encode('roly'); //  -> 305, 306
-       tk.encode("\u0120");               //  -> [undefined, 254]
+       tk84.encode("\u0120");             //  -> [undefined, 254]
 
-       tk.vocab_size; // -> 50257
+       tk84.vocab_size; // -> 50257
 
-       tk.encode("hello world. Hello World. hello,world.")
+       tk84.encode("hello world. Hello World. hello,world.")
        --> [31373, 995, 13, 18435, 2159, 13, 23748, 11, 6894, 13]
-       tk.decode([31373, 995, 13, 18435, 2159, 13, 23748, 11, 6894, 13])
+       tk84.decode([31373, 995, 13, 18435, 2159, 13, 23748, 11, 6894, 13])
        --> hello world. Hello World. hello,world.
 
-       tk.encode('1234abcd 1234 abcd');
+       tk84.encode('1234abcd 1234 abcd');
        -> [1065, 2682, 397, 10210, 1105, 2682, 450, 10210]
-       tk.encode('1234abcd   1234 abcd');
+       tk84.encode('1234abcd   1234 abcd');
        -> [1065, 2682, 397, 10210, 220, 220, 1105, 2682, 450, 10210]
 
 
