@@ -93,14 +93,16 @@ class GPT2Tokenizer extends Tokenizer {
   }
 
   encode(text) {
+    console.log(`GPT2Tokenizer.encode ${text}`);
     if (!this.byte_encoder) throw new Error("Tokenizer not loaded.");
     let bpe_tokens = [];
     const matches = Array.from(text.matchAll(this.pat)).map((x) => x[0]);
     for (let token of matches) {
-      console.log(`  token = ${token}`);
+      console.log(` token = >${token}<`);
       const encoded_bytes = this.textEncoder.encode(token);
       let bytes = [];
       for (let i = 0; i < encoded_bytes.length; i++) {
+        console.log(` encoded_byte = ${encoded_bytes[i]}`);
         bytes.push(this.byte_encoder[encoded_bytes[i].toString()]);
       }
       token = bytes.join("");
@@ -121,7 +123,12 @@ class GPT2Tokenizer extends Tokenizer {
   }
 
   bpe(token) {
-    if (this.cache.has(token)) return this.cache.get(token);
+  // token is a string and a string is returned.
+    console.log(`  bpe, token = >${token}< (${token.constructor.name})`);
+    if (this.cache.has(token)) {
+       console.log(`   token is cached, returning ${this.cache.get(token)} type = ${this.cache.get(token).constructor.name}`);
+       return this.cache.get(token);
+    }
     let word = token.split("");
     let pairs = get_pairs(word);
     if (!pairs) return token;
@@ -183,6 +190,7 @@ const dictZip = (x, y) => {
 };
 
 const bytes_to_unicode = () => {
+console.log(`  bytes_to_unicode`);
   const bs = range(ord("!"), ord("~") + 1).concat(range(ord("¡"), ord("¬") + 1), range(ord("®"), ord("ÿ") + 1));
   let cs = bs.slice();
   let n = 0;

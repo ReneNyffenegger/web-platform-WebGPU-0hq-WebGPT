@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<meta charset="utf-8">
 <html>
   <head>
     <title>WebGPU GPT Model Demo</title>
@@ -74,6 +75,8 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
       } else {
         webgpuSupportMessage.innerHTML = "WebGPU is supported in your browser!";
         setModelButtonDisabled(false);
+
+        tq84_init();
       }
 
       async function startGeneration() {
@@ -170,6 +173,13 @@ console.log(` !visuals, create one`);
 
       function updateVisuals() {
           visuals.render();
+      }
+
+      async function tq84_init() {
+         tk84 = new GPT2Tokenizer();
+         await tk84.load();
+
+         tk84.encode('1234abcd änd  1234 abcd jeiodlqbkdalkf 1234');
       }
     </script>
   </body>
