@@ -115,6 +115,7 @@ class GPT2Tokenizer extends Tokenizer {
       const new_tokens = this.bpe(bytes_str)
         .split(" ")
         .map((x) => this.encoder[x]);
+
       bpe_tokens = bpe_tokens.concat(new_tokens);
     }
     return bpe_tokens;
@@ -135,6 +136,7 @@ class GPT2Tokenizer extends Tokenizer {
        return this.cache.get(token);
     }
     let word = token.split("");
+    console.log(`   word = `, word);
     let pairs = get_pairs(word);
     if (!pairs) return token;
     while (true) {
@@ -187,6 +189,13 @@ const ord = (x) => {
 };
 
 const dictZip = (x, y) => {
+//
+//    Create a dictionary from two arrays of which
+//    the first specifies the keys and the second
+//    the values:
+//
+//      dictZip(['a', 'b', 'c'], ['x', 'y', 'z']) --> {a: 'x', b: 'y', c: 'z'}
+//
   const result = {};
   x.map((_, i) => {
     result[x[i]] = y[i];
@@ -219,6 +228,12 @@ console.log(`  bytes_to_unicode`);
 };
 
 const get_pairs = (word) => {
+//
+//    word is an array of 'printable characters'
+//    get_pairs returns a set in which each element is an Array(2).
+//    Each array stores the neighboring printable characters.
+//
+  console.log(`    get_pairs, word = `, word);
   const pairs = new Set();
   let prev_char = word[0];
   for (let i = 1; i < word.length; i++) {
@@ -226,5 +241,6 @@ const get_pairs = (word) => {
     pairs.add([prev_char, char]);
     prev_char = char;
   }
+  console.log(`     returning pairs = `, pairs);
   return pairs;
 };
