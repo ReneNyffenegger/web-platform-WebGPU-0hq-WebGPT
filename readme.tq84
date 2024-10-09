@@ -101,7 +101,23 @@ GPT2Tokenizer
 
    }}}
 
-   {{{ Bytes, Unicode tec
+   {{{ Return value of bytes_to_unicode   (tokenizer.js)
+
+       Assign a 'printable character' to 256 bytes
+
+       n = 0
+       for (b = 0 .. 255) {
+
+          if isPrintable(b) {
+             ret[b] = b
+          }
+          else {
+             ret[b] = u+0100 + n
+             n = n+1
+          }
+       }
+
+
 
         0: Ā U+0100 Latin Extended-A
         1: ā U+0101
@@ -279,7 +295,9 @@ GPT2Tokenizer
       170: ª U+00AA
       171: « U+00AB
       172: ¬ U+00AC
-      173: Ń U+0143  ??? U+00AD is a soft hyphen («SHY»)
+
+      173: Ń U+0143   U+00AD is a soft hyphen («SHY»)
+
       174: ® U+00AE
       175: ¯ U+00AF
       176: ° U+00B0

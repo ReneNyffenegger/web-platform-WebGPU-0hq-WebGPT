@@ -97,17 +97,22 @@ class GPT2Tokenizer extends Tokenizer {
     if (!this.byte_encoder) throw new Error("Tokenizer not loaded.");
     let bpe_tokens = [];
     const matches = Array.from(text.matchAll(this.pat)).map((x) => x[0]);
-    for (let token of matches) {
-      console.log(` token = >${token}<`);
-      const encoded_bytes = this.textEncoder.encode(token);
-      let bytes = [];
-      for (let i = 0; i < encoded_bytes.length; i++) {
-        console.log(` encoded_byte = ${encoded_bytes[i]} pushed: ${this.byte_encoder[encoded_bytes[i].toString()]}`);
-        bytes.push(this.byte_encoder[encoded_bytes[i].toString()]);
-      }
-      token = bytes.join("");
+    for (let match of matches) {
+      console.log(` match = >${match}<`);
 
-      const new_tokens = this.bpe(token)
+    // textEncoder.encode() takes a string and returns
+    // a Uint8Array with the text encoded as UTF8:
+      const utf8_bytes = this.textEncoder.encode(match);
+
+      let utf8_bytes_printable = [];
+      for (let i = 0; i < utf8_bytes.length; i++) {
+        console.log(` encoded_byte = ${utf8_bytes[i]} pushed: ${this.byte_encoder[utf8_bytes[i]]}`);
+//      utf8_bytes_printable.push(this.byte_encoder[utf8_bytes[i].toString()]);
+        utf8_bytes_printable.push(this.byte_encoder[utf8_bytes[i]           ]);
+      }
+      let bytes_str = utf8_bytes_printable.join("");
+
+      const new_tokens = this.bpe(bytes_str)
         .split(" ")
         .map((x) => this.encoder[x]);
       bpe_tokens = bpe_tokens.concat(new_tokens);
