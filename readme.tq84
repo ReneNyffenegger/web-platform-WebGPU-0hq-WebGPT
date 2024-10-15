@@ -60,12 +60,19 @@ GPT2Tokenizer
         encoder  <- weights/tokenization/gpt_tokens.json
 
 
-   vocab.bpe has
-    50000 interesting lines
-    + 256 byte base tokens
-    +   1 special end-of-text token
-   -----
-    50257 = vocab size 
+   vocab.bpe {{{
+     The file has
+       50000 interesting lines
+       + 256 byte base tokens
+       +   1 special end-of-text token
+      -----
+       50257 = vocab size 
+
+
+       The lines in vocab.bpe consist consist of two
+      'items' which are separated by a white space
+
+   }}} 
 
 
    The method bpe(token) takes a string and returns a string
