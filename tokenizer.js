@@ -59,16 +59,25 @@ class GPT2Tokenizer extends Tokenizer {
 //  console.log("Loading GPT2 tokenizer...");
 
     const bpe_file = await (await fetch("weights/tokenization/vocab.bpe")).text();
-    const encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
-    this.encoder = encoder;
+//  const encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
+//  this.encoder = encoder;
+    this.encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
+
+ // The type of this.encoder (as well as also this.decoder) is Object.
 
 //  console.log("Building decoder...");
     console.log('     Building decoder');
-    const decoder = {};
-    Object.keys(encoder).map((x) => {
-      decoder[encoder[x]] = x;
+//  const decoder = {};
+    this.decoder  = {};
+//  Object.keys(encoder).map((x) => {
+    Object.keys(this.encoder).map((x) => {
+//    decoder[encoder[x]] = x;
+      this.decoder[this.encoder[x]] = x;
     });
-    this.decoder = decoder;
+//  this.decoder = decoder;
+
+    console.log(`    encoder = ${this.encoder.constructor.name}`, this.encoder);
+    console.log(`    decoder = ${this.decoder.constructor.name}`, this.decoder);
 
     const lines = bpe_file.split("\n");
     console.log(`     lines.length = ${lines.length}`);
@@ -102,7 +111,8 @@ class GPT2Tokenizer extends Tokenizer {
     this.bpe_ranks = dictZip(bpe_merges, range(0, bpe_merges.length));
 
     this.cache = new Map();
-    this.vocab_size = Object.keys(encoder).length;
+//  this.vocab_size = Object.keys(encoder).length;
+    this.vocab_size = Object.keys(this.encoder).length;
   }
 
   encode(text) {
@@ -223,8 +233,13 @@ class GPT2Tokenizer extends Tokenizer {
         }
       }
       word = new_word;
-      if (word.length === 1) break;
-      else pairs = get_bigrams(word);
+      if (word.length === 1) {
+         console.log('   Word.length === 1, breaking out');
+         break;
+      }
+      else {
+         pairs = get_bigrams(word);
+      }
     }
 
     const bpe_ret = word; // word.join(' ');
@@ -264,14 +279,22 @@ const dictZip = (x, y) => {
 };
 
 const bytes_to_unicode = () => {
-console.log(`  bytes_to_unicode`);
+  console.log(`  bytes_to_unicode`);
   const bs = range(ord("!"), ord("~") + 1).concat(range(ord("¡"), ord("¬") + 1), range(ord("®"), ord("ÿ") + 1));
-//                      33 ,     126                        161 ,     172                  174 ,    255
+
+//
+// Copy bs
   let cs = bs.slice();
-  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}`);
+
+
+//
+// Initially, both, bs and cs are arrays with 188 elements.
+//
+  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
+
   let n = 0;
-  for (let b = 0; b < 2 ** 8; b++) {
-    console.log(`   b=${b}`);
+  for (let b = 0; b < 2 ** 8; b++) {  // for b = 0 .. 255
+//  console.log(`   b=${b}`);
     if (!bs.includes(b)) {
       console.log(`   b is not included in bs`);
       bs.push(b);
@@ -279,11 +302,39 @@ console.log(`  bytes_to_unicode`);
       n = n + 1;
     }
   }
+
+//
+// Now, their length has increased to 256:
+//
+  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
+
   cs = cs.map((x) => String.fromCharCode(x));
   const result = {};
   bs.map((_, i) => {
     result[bs[i]] = cs[i];
   });
+
+//
+// result is an Object whose keys are the integers 0 .. 255
+// Each value is 'printable Unicode character':
+//    {
+//       0: 'Ā',
+//       1: 'ā',
+//       2: 'Ă',
+//       3: 'ă',
+//       4: 'Ą',
+//
+//          ....
+//
+//      32: 'Ġ',
+//      33: '!',
+//      34: '"',
+//      35: '#'
+//
+//          ...
+//    }
+//
+  console.log(`   bytes_to_unicode: length of result = ${result.length}, constructor name = ${result.constructor.name}`, result);
   return result;
 };
 
