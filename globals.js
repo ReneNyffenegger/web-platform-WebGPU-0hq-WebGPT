@@ -1,11 +1,11 @@
 const FastMatMulBlock = new FastMatMulBlockClass();
-const AttentionBlock = new AttentionBlockClass();
-const ResidualBlock = new ResidualBlockClass();
-const EmbedBlock = new EmbedBlockClass();
-const DeEmbedBlock = new DeEmbedBlockClass();
-const GeluBlock = new GeluBlockClass();
-const LayerNormBlock = new LayerNormBlockClass();
-const SoftmaxBlock = new SoftmaxBlockClass();
+const AttentionBlock  = new AttentionBlockClass();
+const ResidualBlock   = new ResidualBlockClass();
+const EmbedBlock      = new EmbedBlockClass();
+const DeEmbedBlock    = new DeEmbedBlockClass();
+const GeluBlock       = new GeluBlockClass();
+const LayerNormBlock  = new LayerNormBlockClass();
+const SoftmaxBlock    = new SoftmaxBlockClass();
 
 // Needed for deletion.
 let operations = [FastMatMulBlock, AttentionBlock, ResidualBlock, EmbedBlock, DeEmbedBlock, GeluBlock, LayerNormBlock, SoftmaxBlock];

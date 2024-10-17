@@ -29,8 +29,8 @@
 
     <br />
     <br />
-    <label for="tokensInput">Number of tokens:</label>
-    <input type="number" min="1" max="300" value="100" id="tokensInput" disabled />
+    <label for="nofTokensToGenerate">Number of tokens:</label>
+    <input type="number" min="1" max="300" value="100" id="nofTokensToGenerate" disabled />
     <br /><br />
     <label for="topKInput">Top K:</label>
     <input type="number" min="1" max="100" value="2" id="topKInput" disabled />
@@ -57,7 +57,7 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
       };
       const destroyCacheButton = document.getElementById("destroyCacheButton");
 
-      const tokensInput = document.getElementById("tokensInput");
+      const nofTokensToGenerate = document.getElementById("nofTokensToGenerate");
       const topKInput = document.getElementById("topKInput");
       const temperatureInput = document.getElementById("temperatureInput");
       const generateButton = document.getElementById("generateButton");
@@ -83,7 +83,7 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
         setTextareaDisabled(true);
 
         const prompt = promptTextarea.value || " ";
-        const numTokens = tokensInput.value;
+        const numTokens = nofTokensToGenerate.value;
 
         const topK = topKInput.value;
         const temperature = temperatureInput.value;
@@ -109,11 +109,11 @@ console.log(` GPT model is initialized`);
 
         promptTextarea.value = GPTModel.defaultPrompt;
         topKInput.value = GPTModel.defaultTopK;
-        tokensInput.value = GPTModel.defaultTokens;
+        nofTokensToGenerate.value = GPTModel.defaultTokens;
         temperatureInput.value = GPTModel.defaultTemperature;
 
         setTextareaDisabled(false);
-        tokensInput.disabled = false;
+        nofTokensToGenerate.disabled = false;
         topKInput.disabled = false;
         temperatureInput.disabled = false;
 
@@ -137,7 +137,7 @@ console.log(` !visuals, create one`);
         setTextareaDisabled(true);
 
         const prompt = outputDiv.innerHTML || " ";
-        const numTokens = tokensInput.value;
+        const numTokens = nofTokensToGenerate.value;
 
         outputDiv.innerHTML = prompt;
 
@@ -164,7 +164,7 @@ console.log(` !visuals, create one`);
         setModelButtonDisabled(false);
 
         destroyCacheButton.disabled = true;
-        tokensInput.disabled = true;
+        nofTokensToGenerate.disabled = true;
         topKInput.disabled = true;
         temperatureInput.disabled = true;
         updateVisualsButton.disabled = true;

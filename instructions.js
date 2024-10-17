@@ -5,6 +5,7 @@
 // Tuning needed and more detailed benchmarking, but decent for now.
 
 class Block {
+
   constructor() {
     this.name = "";
   }
@@ -13,13 +14,13 @@ class Block {
     console.log(`         initialize device in Block`);
     this.device = device;
     this.initBindGroups();
-    this.pipelineCache = new Map();
-    this.boundBufferCache = new Map();
+    this.pipelineCache      = new Map();
+    this.boundBufferCache   = new Map();
     this.unboundBufferCache = new Map();
   }
 
   initBindGroup(layout, buffers, label = "") {
-    console.log(`        Block.initBindGroup, layout = ${layout}`);
+//  console.log(`        Block.initBindGroup, layout = ${layout}, calling device.createBindGroup`);
     return this.device.createBindGroup({
       layout,
       entries: buffers.map((buffer, i) => ({
@@ -95,10 +96,10 @@ class Block {
       });
 
     this.r_r_r_r_Layout = bg(["read-only-storage", "read-only-storage", "read-only-storage", "read-only-storage"]);
-    this.r_r_r_Layout = bg(["read-only-storage", "read-only-storage", "read-only-storage"]);
-    this.r_r_Layout = bg(["read-only-storage", "read-only-storage"]);
-    this.r_Layout = bg(["read-only-storage"]);
-    this.u_s_Layout = bg(["uniform", "storage"]);
+    this.r_r_r_Layout   = bg(["read-only-storage", "read-only-storage", "read-only-storage"]);
+    this.r_r_Layout     = bg(["read-only-storage", "read-only-storage"]);
+    this.r_Layout       = bg(["read-only-storage"]);
+    this.u_s_Layout     = bg(["uniform", "storage"]);
     this.u_s_s_s_Layout = bg(["uniform", "storage", "storage", "storage"]);
   }
 
@@ -124,12 +125,14 @@ class Block {
   }
 
   clearBufferCache() {
-    // delete all unbound buffers
-    this.unboundBufferCache.forEach((buffers) => buffers.map((buffer) => buffer.destroy()));
-    // set unbound buffers to bound buffers
-    this.unboundBufferCache = this.boundBufferCache;
-    // clear bound buffers
-    this.boundBufferCache = new Map();
+  // delete all unbound buffers
+     this.unboundBufferCache.forEach((buffers) => buffers.map((buffer) => buffer.destroy()));
+
+  // set unbound buffers to bound buffers
+     this.unboundBufferCache = this.boundBufferCache;
+
+  // clear bound buffers
+     this.boundBufferCache = new Map();
   }
 
   destroyBuffers() {
@@ -758,7 +761,7 @@ class EmbedBlockClass extends Block {
   }
 
   staticLoad(embdOutputBuffer, posEmbdOutputBuffer, embdBuffers, posEmbdBuffer, idx, seq_length, n_embd, vocab_chunk_size) {
-    // Can build a cache later.
+ // Can build a cache later.
     const embdCopyCommands = Array(seq_length)
       .fill()
       .map((_, i) => {
@@ -791,7 +794,7 @@ class EmbedBlockClass extends Block {
   }
 
   newInstance(idx, seq_length, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
-    const embdOutputBuffer = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
+    const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
     const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
 
     // Can build a cache later.

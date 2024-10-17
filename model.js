@@ -39,11 +39,14 @@ class GPT {
 
     if (this.tokenizerType == "bpe") {
       console.log('   tokenizerType = bpe');
-      this.defaultPrompt = `What is the answer to life, the universe, and everything?\n`;
-      this.defaultTopK = 3;
-      this.defaultTemperature = 1;
-      this.defaultTokens = 30;
-    } else {
+//    this.defaultPrompt      = `What is the answer to life, the universe, and everything?\n`;
+      this.defaultPrompt      = "don't answer me.";
+      this.defaultTopK        = 3;
+//    this.defaultTemperature = 1;
+      this.defaultTemperature = 0;
+      this.defaultTokens      = 30;
+    }
+    else {
       console.log('   tokenizerType != bpe');
       this.defaultPrompt = `WILL:\nAh, how dare you challenge me?\nHave you forgotten I built WebGPT?\n`;
       this.defaultTopK = 2;
@@ -62,21 +65,31 @@ class GPT {
       return;
     }
 
+    console.log('  model.generate');
+    console.log('   prompt = ', prompt);
+    console.log('   max_new_tokens = ', max_new_tokens);
+    console.log('   top_k = ', top_k);
+    console.log('   temperature = ', temperature);
+
     // Buffer size (321644800) exceeds the max buffer size limit (268435456).
     //  - While calling [Device].CreateBuffer([BufferDescriptor]).
 
     let history = this.tokenizer.encode(prompt);
-    console.log(`Prompt (${history.length} tokens):\n${prompt}`);
+//  console.log(`Prompt (${history.length} tokens):\n${prompt}`);
+    console.log('   history = ', history);
 
     const warmupRuns = 3;
     let totalTime = 0;
 
     for (let i = 0; i < max_new_tokens; i++) {
+    console.log('   i = ', i);
+    //
+    //  Get the lst n_ctx tokens
+    //
       const idx_cond = history.slice(-this.params.n_ctx);
-      const useAttCache = i !== 0 && history.length <= this.params.n_ctx;
 
       const startTime = performance.now();
-      const logits = await this.run(idx_cond, useAttCache);
+      const logits = await this.run(idx_cond);
       const endTime = performance.now();
 
       // console.log(`\nIteration ${i + 1} of ${max_new_tokens}`);
@@ -108,30 +121,33 @@ class GPT {
   }
 
   async run(idx) {
-    const { posEmbdBuffer, layer_buffers, normGammaBuffer, normBetaBuffer, embeddingsBuffers, deEmbeddingsBuffers } = this.model;
-    const { attention_scale, n_embd, n_head, head_size, n_layer, vocab_size, hidden_size, vocab_chunk_size, vocab_chunk_instances } = this.params;
-    const seq_length = idx.length;
 
     // ---------------- Create Passes ---------------- //
-    // Note: These are re-initialized because everytime seq_length changes buffers are different sizes.
+    // Note: These are re-initialized because everytime idx.length changes buffers are different sizes.
 
     // Pipeline creation is major bottleneck to spin up speed! Also buffer re-use.
 
     this.computePasses = [];
     let intermediateBuffer;
     let residualBuffer;
+
     {
-      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, seq_length, n_embd, vocab_chunk_size, embeddingsBuffers, posEmbdBuffer, ResidualBlock);
+      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, idx.length, this.params.n_embd, this.params.vocab_chunk_size, this.model.embeddingsBuffers, this.model.posEmbdBuffer, ResidualBlock);
+
       intermediateBuffer = resultBuffer;
       residualBuffer = resultBuffer;
       this.computePasses.push(...passes);
     }
-    for (let i = 0; i < n_layer; i++) {
-      const buffers = layer_buffers[i];
+
+
+    for (let layer = 0; layer < this.params.n_layer; layer++) {
+
+      const buffers = this.model.layer_buffers[layer];
+
       {
         const { passes, resultBuffer } = LayerNormBlock.newInstance(
-          seq_length,
-          n_embd,
+          idx.length,
+          this.params.n_embd,
           intermediateBuffer,
           buffers.normAttentionGammaBuffer,
           buffers.normAttentionBetaBuffer
@@ -139,38 +155,38 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
+
       {
         const { passes, resultBuffer } = AttentionBlock.newFusedInstance(
-          seq_length,
-          n_embd,
-          attention_scale,
-          n_head,
-          head_size,
+          idx.length,
+          this.params.n_embd,
+          this.params.attention_scale,
+          this.params.n_head,
+          this.params.head_size,
           intermediateBuffer,
-          buffers.qkvWeightArray[0],
-          buffers.qkvBiasArray[0],
-          buffers.qkvWeightArray[1],
-          buffers.qkvBiasArray[1],
-          buffers.qkvWeightArray[2],
-          buffers.qkvBiasArray[2],
+          buffers.qkvWeightArray[0], buffers.qkvBiasArray[0],
+          buffers.qkvWeightArray[1], buffers.qkvBiasArray[1],
+          buffers.qkvWeightArray[2], buffers.qkvBiasArray[2],
           buffers.linearWeightsBuffer,
           buffers.linearBiasBuffer,
           FastMatMulBlock,
           SoftmaxBlock
         );
+
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
+
       {
-        const { passes, resultBuffer } = ResidualBlock.newInstance(seq_length, n_embd, intermediateBuffer, residualBuffer);
+        const { passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer);
         intermediateBuffer = resultBuffer;
         residualBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
       {
         const { passes, resultBuffer } = LayerNormBlock.newInstance(
-          seq_length,
-          n_embd,
+          idx.length,
+          this.params.n_embd,
           intermediateBuffer,
           buffers.normLinearGammaBuffer,
           buffers.normLinearBetaBuffer
@@ -178,11 +194,12 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
+
       {
         const { resultBuffer, passes } = FastMatMulBlock.newInstance(
-          seq_length,
-          hidden_size,
-          n_embd,
+          idx.length,
+          this.params.hidden_size,
+          this.params.n_embd,
           intermediateBuffer,
           buffers.firstLayerWeightsBuffer,
           buffers.firstLayerBiasBuffer
@@ -191,15 +208,17 @@ class GPT {
         this.computePasses.push(...passes);
       }
       {
-        const { resultBuffer, passes } = GeluBlock.newInstance(seq_length, hidden_size, intermediateBuffer);
+
+        const { resultBuffer, passes } = GeluBlock.newInstance(idx.length, this.params.hidden_size, intermediateBuffer);
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
+
       {
         const { resultBuffer, passes } = FastMatMulBlock.newInstance(
-          seq_length,
-          n_embd,
-          hidden_size,
+          idx.length,
+          this.params.n_embd,
+          this.params.hidden_size,
           intermediateBuffer,
           buffers.secondLayerWeightsBuffer,
           buffers.secondLayerBiasBuffer
@@ -207,13 +226,15 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
+
       {
-        const { passes, resultBuffer } = ResidualBlock.newInstance(seq_length, n_embd, intermediateBuffer, residualBuffer);
+        const { passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer);
         intermediateBuffer = resultBuffer;
         residualBuffer = resultBuffer;
         this.computePasses.push(...passes);
       }
     }
+
     {
       if (this.externalBuffer) {
         this.computePasses.push({
@@ -222,24 +243,25 @@ class GPT {
           srcOffset: 0,
           dst: this.externalBuffer,
           dstOffset: 0,
-          size: this.bufferSize(seq_length, n_embd),
+          size: this.bufferSize(idx.length, this.params.n_embd),
         });
       }
     }
+
     {
-      const { passes, resultBuffer } = LayerNormBlock.newInstance(seq_length, n_embd, intermediateBuffer, normGammaBuffer, normBetaBuffer);
+      const { passes, resultBuffer } = LayerNormBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, this.model.normGammaBuffer, this.model.normBetaBuffer);
       intermediateBuffer = resultBuffer;
       this.computePasses.push(...passes);
     }
     {
       const { passes, resultBuffer } = DeEmbedBlock.newInstance(
-        n_embd,
-        vocab_size,
-        vocab_chunk_size * vocab_chunk_instances,
-        seq_length,
-        vocab_chunk_size,
+        this.params.n_embd,
+        this.params.vocab_size,
+        this.params.vocab_chunk_size * this.params.vocab_chunk_instances,
+        idx.length,
+        this.params.vocab_chunk_size,
         intermediateBuffer,
-        deEmbeddingsBuffers
+        this.model.deEmbeddingsBuffers
       );
       intermediateBuffer = resultBuffer;
       this.computePasses.push(...passes);
@@ -316,8 +338,8 @@ class GPT {
     console.log(`       minSplits = ${minSplits}`);
 
     function vocabChunkSizeCalc(vocab_size, n_embd, splits, maxStorageBufferBindingSize) {
-      // Possibly could be better? Needs actual benchmarking to know what approach is best.
-      const optimisticSize = Math.ceil(vocab_size / splits / 4) * 4 * n_embd;
+    // Possibly could be better? Needs actual benchmarking to know what approach is best.
+      const optimisticSize = Math.ceil (vocab_size / splits / 4) * 4 * n_embd;
       const pessimiticSize = Math.floor(vocab_size / splits / 4) * 4 * n_embd;
       let vocab_chunk_size = optimisticSize;
       if (optimisticSize > maxStorageBufferBindingSize) {
@@ -334,23 +356,20 @@ class GPT {
 
     if (splits > minSplits) console.warn(`Non-optimal number of vocab splits. Optimal: ${minSplits}, Selected: ${splits}`);
 
-    // Set derived parameters
-    params.vocab_chunk_size = vocab_chunk_size;
+ // Set derived parameters
+    params.vocab_chunk_size      = vocab_chunk_size;
     params.vocab_chunk_instances = splits;
-    params.head_size = params.n_embd / params.n_head;
-    params.hidden_size = params.n_embd * 4;
-    params.attention_scale = 1 / Math.sqrt(params.n_embd / params.n_head);
-    params.bias = params.bias == undefined ? true : params.bias;
+    params.head_size             = params.n_embd / params.n_head;
+    params.hidden_size           = params.n_embd * 4;
+    params.attention_scale       = 1 / Math.sqrt(params.n_embd / params.n_head);
+    params.bias                  = params.bias == undefined ? true : params.bias;
 
     // Check for overflow in buffers larger than maxStorageBufferBindingSize
     const maxBufferSize = this.device.limits.maxStorageBufferBindingSize / 4;
-    if (params.n_embd * params.n_ctx > maxBufferSize) console.warn("Model load failed: n_embd * n_ctx must be less than maxStorageBufferBindingSize.");
-    if (params.n_embd * params.hidden_size > maxBufferSize)
-      console.warn("Model load failed: n_embd * hidden_size must be less than maxStorageBufferBindingSize.");
-    if (params.n_ctx * params.n_ctx * params.n_head > maxBufferSize)
-      console.warn("Model load failed: n_ctx * n_ctx must be less than maxStorageBufferBindingSize.");
-    if (params.n_embd * params.n_embd * 3 > maxBufferSize)
-      console.warn("Model load failed: n_embd * n_embd * 3 must be less than maxStorageBufferBindingSize.");
+    if (params.n_embd * params.n_ctx                 > maxBufferSize) console.warn("Model load failed: n_embd * n_ctx must be less than maxStorageBufferBindingSize.");
+    if (params.n_embd * params.hidden_size           > maxBufferSize) console.warn("Model load failed: n_embd * hidden_size must be less than maxStorageBufferBindingSize.");
+    if (params.n_ctx  * params.n_ctx * params.n_head > maxBufferSize) console.warn("Model load failed: n_ctx * n_ctx must be less than maxStorageBufferBindingSize.");
+    if (params.n_embd * params.n_embd * 3            > maxBufferSize) console.warn("Model load failed: n_embd * n_embd * 3 must be less than maxStorageBufferBindingSize.");
 
 //  console.log("Params:", params);
     console.log("       Params:", params);
@@ -439,18 +458,18 @@ class GPT {
 
     // Create an array of promises for fetching and initializing the tensors
     const tensorPromises = [
-      this.fetchAndInitTensor(`${prefix}ln_1.weight_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_1.bias_gpt.bin`, [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}ln_1.weight_gpt.bin`                  , [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}ln_1.bias_gpt.bin`                    , [params.n_embd], ["storage"]),
       this.fetchAndSplitQKVWeightTensors(`${prefix}attn.c_attn.weight_gpt.bin`, [params.n_embd, 3 * params.n_embd], ["storage"]),
-      this.fetchAndSplitQKVBiasTensors(`${prefix}attn.c_attn.bias_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}attn.c_proj.weight_gpt.bin`, [params.n_embd, params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}attn.c_proj.bias_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_2.weight_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_2.bias_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_fc.weight_gpt.bin`, [params.n_embd, params.hidden_size], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_fc.bias_gpt.bin`, [params.hidden_size], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_proj.weight_gpt.bin`, [params.hidden_size, params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_proj.bias_gpt.bin`, [params.n_embd], ["storage"]),
+      this.fetchAndSplitQKVBiasTensors(`${prefix}attn.c_attn.bias_gpt.bin`    , [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}attn.c_proj.weight_gpt.bin`           , [params.n_embd, params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}attn.c_proj.bias_gpt.bin`             , [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}ln_2.weight_gpt.bin`                  , [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}ln_2.bias_gpt.bin`                    , [params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}mlp.c_fc.weight_gpt.bin`              , [params.n_embd, params.hidden_size], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}mlp.c_fc.bias_gpt.bin`                , [params.hidden_size], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}mlp.c_proj.weight_gpt.bin`            , [params.hidden_size, params.n_embd], ["storage"]),
+      this.fetchAndInitTensor(`${prefix}mlp.c_proj.bias_gpt.bin`              , [params.n_embd], ["storage"]),
     ];
 
     // Wait for all tensors to be fetched and initialized

@@ -449,6 +449,18 @@ GPT2Tokenizer
 
 }}}
 -----------------------------
+{{{ Parameters and constants
+
+    n_ctx
+      - Used in generate() to get the "last n_ctx" tokens
+        
+
+    top-k
+
+
+}}}
+
+-----------------------------
 
 Visuals
   The canvas seems to display n_ebmd * n_ctx dots
