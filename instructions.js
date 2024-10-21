@@ -6,8 +6,8 @@
 
 class Block {
 
-  constructor() {
-    this.name = "";
+  constructor(name) {
+    this.name = name;
   }
 
   initialize(device) {
@@ -86,6 +86,7 @@ class Block {
   // Could be removed with auto bind groups, currently initializing everytime so probably slowing things down.
   initBindGroups() {
     console.log(`           Block.initBindGroups`);
+
     const bg = (types) =>
       this.device.createBindGroupLayout({
         entries: types.map((entry, i) => ({
@@ -146,8 +147,8 @@ class Block {
 
 class FastMatMulBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "fastMatMul";
+    super("fastMatMul");
+//  this.name = "fastMatMul";
   }
 
   getPipeline(rows) {
@@ -327,8 +328,8 @@ class FastMatMulBlockClass extends Block {
 
 class ResidualBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "residual";
+    super("residual");
+//  this.name = "residual";
   }
 
   getPipeline() {
@@ -392,8 +393,8 @@ class ResidualBlockClass extends Block {
 
 class LayerNormBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "layerNorm";
+    super("layerNorm");
+//  this.name = "layerNorm";
   }
 
   getStatsPipeline(workgroups) {
@@ -558,8 +559,8 @@ class LayerNormBlockClass extends Block {
 
 class SoftmaxBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "softmax";
+    super("softmax");
+//  this.name = "softmax";
   }
 
   getFusedPipeline(workgroups, transpose) {
@@ -674,8 +675,8 @@ class SoftmaxBlockClass extends Block {
 
 class GeluBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "gelu";
+    super("gelu");
+//  this.name = "gelu";
   }
 
   getPipeline() {
@@ -756,8 +757,8 @@ class GeluBlockClass extends Block {
 
 class EmbedBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "embed";
+    super("embed");
+//  this.name = "embed";
   }
 
   staticLoad(embdOutputBuffer, posEmbdOutputBuffer, embdBuffers, posEmbdBuffer, idx, seq_length, n_embd, vocab_chunk_size) {
@@ -835,8 +836,8 @@ class EmbedBlockClass extends Block {
 
 class DeEmbedBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "deembed";
+    super("deembed");
+//  this.name = "deembed";
   }
 
   getPipeline() {
@@ -960,8 +961,8 @@ class DeEmbedBlockClass extends Block {
 
 class AttentionBlockClass extends Block {
   constructor() {
-    super();
-    this.name = "attention";
+    super("attention");
+//  this.name = "attention";
   }
 
   getNewAttentionWeightsPipeline() {
