@@ -40,11 +40,11 @@ const bufferUsageDict = {
 
 // ---------------- Helper Functions ----------------
 
-async function fetchBin(url) {
-  const response = await fetch(url);  // Returns a Response object
-  const buffer = await response.arrayBuffer();
-  console.log(`          fetchBin(${url}) -> buffer = ${buffer.constructor.name}, byteLength = ${buffer.byteLength} "length" = ${buffer.byteLength / 4}`)
-  return new Float32Array(buffer);
+async function fetchBin2Float32Array(url) {
+   const response = await fetch(url);  // Returns a Response object
+   const buffer = await response.arrayBuffer();
+// console.log(`          fetchBin2Float32Array(${url}) -> buffer = ${buffer.constructor.name}, byteLength = ${buffer.byteLength} "length" = ${buffer.byteLength / 4}`)
+   return new Float32Array(buffer);
 }
 
 const wgSize = (dim, size) => Math.min(Math.ceil(dim / size), Infinity);
@@ -106,9 +106,9 @@ function leastPrimeFactor(n, start = 2) {
 }
 
 function formatAsMatrix(floatArray, dimA, dimB) {
-  const resultMatrix = [];
-  for (let i = 0; i < dimA; i++) {
-    resultMatrix.push(floatArray.slice(i * dimB, (i + 1) * dimB));
-  }
-  return resultMatrix;
+   const resultMatrix = [];
+   for (let i = 0; i < dimA; i++) {
+      resultMatrix.push(floatArray.slice(i * dimB, (i + 1) * dimB));
+   }
+   return resultMatrix;
 }

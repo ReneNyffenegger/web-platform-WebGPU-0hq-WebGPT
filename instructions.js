@@ -67,14 +67,20 @@ class Block {
     return this.initBuffer(["storage", "copy_from"], dims, key);
   }
 
+
   initBuffer(ops, dims, key = "") {
-    const buffer = this.device.createBuffer({
-      size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
-      usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
-    });
-    if (!this.boundBufferCache.has(key)) this.boundBufferCache.set(key, []);
-    this.boundBufferCache.get(key).push(buffer);
-    return buffer;
+
+     const buffer = this.device.createBuffer({
+        size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
+        usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+     });
+
+     if (!this.boundBufferCache.has(key)) {
+        this.boundBufferCache.set(key, []);
+     }
+
+     this.boundBufferCache.get(key).push(buffer);
+     return buffer;
   }
 
   bufferSize(dimA, dimB = 1) {
@@ -96,24 +102,29 @@ class Block {
         })),
       });
 
+ //
+ // None of the following bind groups seem to be used in an EmbedBlock
+ //
     this.r_r_r_r_Layout = bg(["read-only-storage", "read-only-storage", "read-only-storage", "read-only-storage"]); // Used in                                           LayerNormBlockClass
     this.r_r_r_Layout   = bg(["read-only-storage", "read-only-storage", "read-only-storage"                     ]); // Used in FastMatMulBlockClass
     this.r_r_Layout     = bg(["read-only-storage", "read-only-storage"                                          ]); // Used in                       ResidualBlockClass,                                                         DeEmbedBlockClass, AttentionBlockClass
     this.r_Layout       = bg(["read-only-storage"                                                               ]); // Used in                                           LayerNormBlockClass, SoftmaxBlockClass, GeluBlockClass,                    AttentionBlockClass
     this.u_s_Layout     = bg(["uniform", "storage"                                                              ]); // Used in FastMatMulBlockClass, ResidualBlockClass, LayerNormBlockClass, SoftmaxBlockClass, GeluBlockClass, DeEmbedBlockClass, AttentionBlockClass
+
+    
 //  this.u_s_s_s_Layout = bg(["uniform", "storage", "storage", "storage"]);
   }
 
-  initPipeline(code, bindGroupLayouts, label = "", constants = {}) {
-    return this.device.createComputePipeline({
-      layout: this.device.createPipelineLayout({ bindGroupLayouts }),
-      compute: {
-        module: this.device.createShaderModule({ code }),
-        entryPoint: "main",
-        constants,
-      },
-      label,
-    });
+  createPipeline(code, bindGroupLayouts, label = "", constants = {}) {
+     return this.device.createComputePipeline({
+        layout: this.device.createPipelineLayout({ bindGroupLayouts }),
+        compute: {
+          module: this.device.createShaderModule({ code }),
+          entryPoint: "main",
+          constants,
+        },
+        label,
+     });
   }
 
   destroy() {
@@ -156,7 +167,7 @@ class FastMatMulBlockClass extends Block {
     const pipelineCacheKey = `${this.name}_${settings}}`;
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
     const kernel = this.fastMatMul(settings);
-    const pipeline = this.initPipeline(kernel, [this.u_s_Layout, this.r_r_r_Layout], `${this.name}_Pipeline_${pipelineCacheKey}`);
+    const pipeline = this.createPipeline(kernel, [this.u_s_Layout, this.r_r_r_Layout], `${this.name}_Pipeline_${pipelineCacheKey}`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -335,7 +346,7 @@ class ResidualBlockClass extends Block {
   getPipeline() {
     const pipelineCacheKey = this.name; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.elementWiseAdditionShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline`);
+    const pipeline = this.createPipeline(this.elementWiseAdditionShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -400,7 +411,7 @@ class LayerNormBlockClass extends Block {
   getStatsPipeline(workgroups) {
     const pipelineCacheKey = `${this.name}_stats_${workgroups}`;
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.normStatsShader(workgroups), [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_Stats`);
+    const pipeline = this.createPipeline(this.normStatsShader(workgroups), [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_Stats`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -408,7 +419,7 @@ class LayerNormBlockClass extends Block {
   getNormPipeline() {
     const pipelineCacheKey = `${this.name}_norm`; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.normShader, [this.u_s_Layout, this.r_r_r_r_Layout], `${this.name}_Pipeline_Norm`);
+    const pipeline = this.createPipeline(this.normShader, [this.u_s_Layout, this.r_r_r_r_Layout], `${this.name}_Pipeline_Norm`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -566,7 +577,7 @@ class SoftmaxBlockClass extends Block {
   getFusedPipeline(workgroups, transpose) {
     const pipelineCacheKey = `${this.name}_fused_${workgroups}_${transpose}`;
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.fusedShader(workgroups, transpose), [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_Div`);
+    const pipeline = this.createPipeline(this.fusedShader(workgroups, transpose), [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_Div`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -682,7 +693,7 @@ class GeluBlockClass extends Block {
   getPipeline() {
     const pipelineCacheKey = this.name; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.GELUShader, [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline`);
+    const pipeline = this.createPipeline(this.GELUShader, [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -761,7 +772,9 @@ class EmbedBlockClass extends Block {
 //  this.name = "embed";
   }
 
+/*
   staticLoad(embdOutputBuffer, posEmbdOutputBuffer, embdBuffers, posEmbdBuffer, idx, seq_length, n_embd, vocab_chunk_size) {
+console.log('**** EmbedBlockClass.staticLoad() ****')
  // Can build a cache later.
     const embdCopyCommands = Array(seq_length)
       .fill()
@@ -793,45 +806,56 @@ class EmbedBlockClass extends Block {
       passes: [...embdCopyCommands, posCopyCommand],
     };
   }
+*/
 
-  newInstance(idx, seq_length, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
-    const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
-    const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
+// newInstance(idx, seq_length, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
+   newInstance(idx,             n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
+      console.log('      EmbedBlockClass.newInstance');
 
-    // Can build a cache later.
-    const embdCopyCommands = Array(seq_length)
-      .fill()
-      .map((_, i) => {
-        const chunkOffset = Math.floor(idx[i] / vocab_chunk_size);
-        const chunkIdx = idx[i] % vocab_chunk_size;
+//    const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
+//    const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
+      const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [idx.length, n_embd]);
+      const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [idx.length, n_embd]);
 
-        return {
-          flag: "copy",
-          src: embdBuffers[chunkOffset],
-          srcOffset: this.bufferSize(n_embd) * chunkIdx,
-          dst: embdOutputBuffer,
-          dstOffset: this.bufferSize(n_embd) * i,
-          size: this.bufferSize(n_embd),
-        };
-      });
+   // Can build a cache later.
+//    const embdCopyCommands = Array(seq_length)
+      const embdCopyCommands = Array(idx.length)
+        .fill()
+        .map((_, i) => {
+          const chunkOffset = Math.floor(idx[i] / vocab_chunk_size);
+          const chunkIdx = idx[i] % vocab_chunk_size;
 
-    // Also can be cached.
-    const posCopyCommand = {
-      flag: "copy",
-      src: posEmbdBuffer,
-      srcOffset: 0,
-      dst: posEmbdOutputBuffer,
-      dstOffset: 0,
-      size: this.bufferSize(seq_length, n_embd),
-    };
+          return {
+            flag: "copy",
+            src: embdBuffers[chunkOffset],
+            srcOffset: this.bufferSize(n_embd) * chunkIdx,
+            dst: embdOutputBuffer,
+            dstOffset: this.bufferSize(n_embd) * i,
+            size: this.bufferSize(n_embd),
+          };
+        });
 
-    const { resultBuffer: residualResult, passes: residualPasses } = ResidualBlock.newInstance(seq_length, n_embd, embdOutputBuffer, posEmbdOutputBuffer);
+      console.log('       embdCopyCommands = ', embdCopyCommands);
 
-    return {
-      resultBuffer: residualResult,
-      passes: [...embdCopyCommands, posCopyCommand, ...residualPasses],
-    };
-  }
+   // Also can be cached.
+      const posCopyCommand = {
+        flag: "copy",
+        src: posEmbdBuffer,
+        srcOffset: 0,
+        dst: posEmbdOutputBuffer,
+        dstOffset: 0,
+//      size: this.bufferSize(seq_length, n_embd),
+        size: this.bufferSize(idx.length, n_embd),
+      };
+
+//    const { resultBuffer: residualResult, passes: residualPasses } = ResidualBlock.newInstance(seq_length, n_embd, embdOutputBuffer, posEmbdOutputBuffer);
+      const { resultBuffer: residualResult, passes: residualPasses } = ResidualBlock.newInstance(idx.length, n_embd, embdOutputBuffer, posEmbdOutputBuffer);
+
+      return {
+         resultBuffer: residualResult,
+         passes: [...embdCopyCommands, posCopyCommand, ...residualPasses],
+      };
+   }
 }
 
 class DeEmbedBlockClass extends Block {
@@ -843,7 +867,7 @@ class DeEmbedBlockClass extends Block {
   getPipeline() {
     const pipelineCacheKey = this.name; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.deEmbedShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline`);
+    const pipeline = this.createPipeline(this.deEmbedShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -968,7 +992,7 @@ class AttentionBlockClass extends Block {
   getNewAttentionWeightsPipeline() {
     const pipelineCacheKey = `${this.name}_weights_fused`; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.fusedWeightsShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline_AttWeights`);
+    const pipeline = this.createPipeline(this.fusedWeightsShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline_AttWeights`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -976,7 +1000,7 @@ class AttentionBlockClass extends Block {
   getNewAttentionValuesPipeline() {
     const pipelineCacheKey = `${this.name}_values_fused`; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.newAttentionValuesShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline_AttValues`);
+    const pipeline = this.createPipeline(this.newAttentionValuesShader, [this.u_s_Layout, this.r_r_Layout], `${this.name}_Pipeline_AttValues`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -984,7 +1008,7 @@ class AttentionBlockClass extends Block {
   getFormatQPipeline() {
     const pipelineCacheKey = `${this.name}_format_q`; // No param optimization.
     if (this.pipelineCache.has(pipelineCacheKey)) return this.pipelineCache.get(pipelineCacheKey);
-    const pipeline = this.initPipeline(this.formatQShader, [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_formatQ`);
+    const pipeline = this.createPipeline(this.formatQShader, [this.u_s_Layout, this.r_Layout], `${this.name}_Pipeline_formatQ`);
     this.pipelineCache.set(pipelineCacheKey, pipeline);
     return pipeline;
   }
@@ -1007,37 +1031,16 @@ class AttentionBlockClass extends Block {
     FastMatMulBlock,
     SoftmaxBlock
   ) {
-    const { resultBuffer: QResultBuffer, passes: QMLPPasses } = FastMatMulBlock.newInstance(
-      seq_length,
-      n_embd,
-      n_embd,
-      inputBuffer,
-      qWeightsBuffer,
-      qBiasBuffer
-    );
-    const { resultBuffer: KResultBuffer, passes: KMLPPasses } = FastMatMulBlock.newInstance(
-      seq_length,
-      n_embd,
-      n_embd,
-      inputBuffer,
-      kWeightsBuffer,
-      kBiasBuffer
-    );
-    const { resultBuffer: VResultBuffer, passes: VMLPPasses } = FastMatMulBlock.newInstance(
-      seq_length,
-      n_embd,
-      n_embd,
-      inputBuffer,
-      vWeightsBuffer,
-      vBiasBuffer
-    );
+    const { resultBuffer: QResultBuffer, passes: QMLPPasses } = FastMatMulBlock.newInstance(seq_length, n_embd, n_embd, inputBuffer, qWeightsBuffer, qBiasBuffer);
+    const { resultBuffer: KResultBuffer, passes: KMLPPasses } = FastMatMulBlock.newInstance(seq_length, n_embd, n_embd, inputBuffer, kWeightsBuffer, kBiasBuffer);
+    const { resultBuffer: VResultBuffer, passes: VMLPPasses } = FastMatMulBlock.newInstance(seq_length, n_embd, n_embd, inputBuffer, vWeightsBuffer, vBiasBuffer);
 
-    const formatQPipeline = this.getFormatQPipeline();
-    const formatQUniformBuffer = this.initUniform(4, [[0, new Uint32Array([seq_length, n_embd, head_size])]]);
-    const formatQResultBuffer = this.initResultBuffer([seq_length * n_head, head_size]);
-    const formatQBindGroup = this.initBindGroup(this.u_s_Layout, [formatQUniformBuffer, formatQResultBuffer]);
+    const formatQPipeline       = this.getFormatQPipeline();
+    const formatQUniformBuffer  = this.initUniform(4, [[0, new Uint32Array([seq_length, n_embd, head_size])]]);
+    const formatQResultBuffer   = this.initResultBuffer([seq_length * n_head, head_size]);
+    const formatQBindGroup      = this.initBindGroup(this.u_s_Layout, [formatQUniformBuffer, formatQResultBuffer]);
     const formatQInputBindGroup = this.initBindGroup(this.r_Layout, [QResultBuffer], `${this.name}_formatQInputG`);
-    const formatQWorkgroups = { x: wgSize(n_embd, 8), y: wgSize(seq_length, 8), z: 1 };
+    const formatQWorkgroups     = { x: wgSize(n_embd, 8), y: wgSize(seq_length, 8), z: 1 };
 
     const attentionWeightsPipeline = this.getNewAttentionWeightsPipeline();
     const attentionWeightsUniformBuffer = this.initUniform(8, [

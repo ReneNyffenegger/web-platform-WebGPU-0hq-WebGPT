@@ -35,6 +35,7 @@ class GPT {
 
     [this.model, this.params] = await this.loadModel(this.folder);
     this.tokenizer = this.tokenizerType == "bpe" ? new GPT2Tokenizer() : new SimpleTokenizer();
+    console.log('   call this.tokenizer.load');
     await this.tokenizer.load();
 
     if (this.tokenizerType == "bpe") {
@@ -86,22 +87,22 @@ class GPT {
     //
     //  Get the lst n_ctx tokens
     //
-      const idx_cond = history.slice(-this.params.n_ctx);
+       const idx_cond = history.slice(-this.params.n_ctx);
 
-      const startTime = performance.now();
-      const logits = await this.run(idx_cond);
-      const endTime = performance.now();
+       const startTime = performance.now();
+       const logits    = await this.run(idx_cond);
+       const endTime   = performance.now();
 
       // console.log(`\nIteration ${i + 1} of ${max_new_tokens}`);
-      const lapsedTime = endTime - startTime;
-//    console.log(`Kernel execution time: ${lapsedTime} ms`);
-      i >= warmupRuns && (totalTime += lapsedTime);
+       const lapsedTime = endTime - startTime;
+//     console.log(`Kernel execution time: ${lapsedTime} ms`);
+       i >= warmupRuns && (totalTime += lapsedTime);
 
-      const { topKIndices, topKProbs } = selectTopK(logits, top_k);
-      const probs = cpuSoftmax(topKProbs, temperature);
-      const idx_next = topKIndices[sampleFromDistribution(probs)];
+       const { topKIndices, topKProbs } = selectTopK(logits, top_k);
+       const probs = cpuSoftmax(topKProbs, temperature);
+       const idx_next = topKIndices[sampleFromDistribution(probs)];
 
-      history = history.concat(idx_next);
+       history = history.concat(idx_next);
 
       // console.log(`Output:\n${this.tokenizer.decode(history)}`);
 
@@ -114,13 +115,14 @@ class GPT {
       //   .join(" | ");
       // console.log("Top 8 token probs:", tokenProbsString);
 
-      yield this.tokenizer.decode([idx_next]);
+       yield this.tokenizer.decode([idx_next]);
     }
 
     console.log(`Average kernel execution time: ${totalTime / (max_new_tokens - warmupRuns)} ms`);
   }
 
   async run(idx) {
+    console.log('    model.run');
 
     // ---------------- Create Passes ---------------- //
     // Note: These are re-initialized because everytime idx.length changes buffers are different sizes.
@@ -132,7 +134,8 @@ class GPT {
     let residualBuffer;
 
     {
-      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, idx.length, this.params.n_embd, this.params.vocab_chunk_size, this.model.embeddingsBuffers, this.model.posEmbdBuffer, ResidualBlock);
+//    const { passes, resultBuffer } = EmbedBlock.newInstance(idx, idx.length, this.params.n_embd, this.params.vocab_chunk_size, this.model.embeddingsBuffers, this.model.posEmbdBuffer, ResidualBlock);
+      const { passes, resultBuffer } = EmbedBlock.newInstance(idx,             this.params.n_embd, this.params.vocab_chunk_size, this.model.embeddingsBuffers, this.model.posEmbdBuffer, ResidualBlock);
 
       intermediateBuffer = resultBuffer;
       residualBuffer = resultBuffer;
@@ -268,23 +271,35 @@ class GPT {
     }
     const resultBuffer = intermediateBuffer;
 
-    // ---------------- Compute Passes ----------------
+ // ---------------- Compute Passes ----------------
 
+    console.log('     model.run - Compute Passes');
+
+//
+//  Create a GPUCommandEncoder instance:
     const commandEncoder = this.device.createCommandEncoder();
+//  console.log(`     commandEncoder = ${commandEncoder.constructor.name}`);
+
     for (const pass of this.computePasses) {
-      if (pass.flag === "compute") {
-        const passEncoder = commandEncoder.beginComputePass();
-        passEncoder.setPipeline(pass.pipeline);
-        for (let i = 0; i < pass.groups.length; i++) passEncoder.setBindGroup(i, pass.groups[i]);
-        passEncoder.dispatchWorkgroups(pass.workgroups.x, pass.workgroups.y);
-        passEncoder.end();
-      } else if (pass.flag === "copy") {
-        commandEncoder.copyBufferToBuffer(pass.src, pass.srcOffset, pass.dst, pass.dstOffset, pass.size);
-      }
+       if (pass.flag === "compute") {
+          const passEncoder = commandEncoder.beginComputePass();
+          passEncoder.setPipeline(pass.pipeline);
+
+          for (let i = 0; i < pass.groups.length; i++) {
+             passEncoder.setBindGroup(i, pass.groups[i]);
+          }
+
+          passEncoder.dispatchWorkgroups(pass.workgroups.x, pass.workgroups.y);
+          passEncoder.end();
+        }
+        else if (pass.flag === "copy") {
+          commandEncoder.copyBufferToBuffer(pass.src, pass.srcOffset, pass.dst, pass.dstOffset, pass.size);
+       }
     }
+
     this.device.queue.submit([commandEncoder.finish()]);
 
-    // ---------------- Read Results ----------------
+ // ---------------- Read Results ----------------
 
     await resultBuffer.mapAsync(GPUMapMode.READ);
     const output = resultBuffer.getMappedRange();
@@ -327,10 +342,11 @@ class GPT {
     console.log(`       n_embd:     ${params.n_embd}`);
     console.log(`       n_ctx:      ${params.n_ctx}`);
 
-    // Did you enable GitHub LFS? Won't work without it.
+ // Did you enable GitHub LFS? Won't work without it.
     if (params.n_embd % 4 !== 0) throw new Error("Model load failed: n_embd must be divisible by 4.");
     if (params.n_embd % params.n_head !== 0) throw new Error("Model load failed: n_embd must be divisible by n_head.");
-    // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
+
+ // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
     if ((params.n_embd / params.n_head) % 4 !== 0) throw new Error("Model load failed: n_embd / n_head must be divisible by 4.");
     const tokenParam = this.bufferSize(params.vocab_size, params.n_embd);
     console.log(`       tokenParam = ${tokenParam} (vocab_size * n_embd * 4 = ${params.vocab_size * params.n_embd * 4})`);
@@ -380,7 +396,7 @@ class GPT {
   async loadEmbeddings(params, weightsFolder) {
     console.log('      loadEmbeddings');
 //  console.log("Loading token embeddings...");
-    const embeddingWeights = await fetchBin(`${weightsFolder}/transformer.wte.weight_gpt.bin`);
+    const embeddingWeights = await fetchBin2Float32Array(`${weightsFolder}/transformer.wte.weight_gpt.bin`);
     console.log(`       embeddingWeights length = ${embeddingWeights.length} byteLength = ${embeddingWeights.byteLength}`);
 
     // Chunks are stored in row-major order and are of dimensions n_embd x vocab_chunk_size.
@@ -415,101 +431,101 @@ class GPT {
 
   async loadPositionalEmbeddings(params, weightsFolder) {
 //  console.log("Loading positional embeddings...");
-    console.log('      loadPositionalEmbeddings');
-    const posEmbeddings = await fetchBin(`${weightsFolder}/transformer.wpe.weight_gpt.bin`);
+//  console.log('      loadPositionalEmbeddings');
+    const posEmbeddings = await fetchBin2Float32Array(`${weightsFolder}/transformer.wpe.weight_gpt.bin`);
     const posEmbdBuffer = this.initTensor(posEmbeddings, [params.n_ctx, params.n_embd], ["copy_from"]);
 
     return { posEmbdBuffer };
   }
 
   async loadFinalLayerNorm(params, weightsFolder) {
-//  console.log("Loading final norm...");
-    console.log('      loadFinalyLayerNorm');
-    const prefix = `${weightsFolder}/transformer.ln_f.`;
+//   console.log("Loading final norm...");
+//   console.log('      loadFinalyLayerNorm');
+     const prefix = `${weightsFolder}/transformer.ln_f.`;
 
-    const tensorPromises = [
-      this.fetchAndInitTensor(`${prefix}weight_gpt.bin`, [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}bias_gpt.bin`, [params.n_embd], ["storage"]),
-    ];
+     const tensorPromises = [
+        this.fetchAndInitTensor(`${prefix}weight_gpt.bin`, [params.n_embd], ["storage"]),
+        this.fetchAndInitTensor(`${prefix}bias_gpt.bin`, [params.n_embd], ["storage"]),
+     ];
 
-    const [normGammaBuffer, normBetaBuffer] = await Promise.all(tensorPromises);
+     const [normGammaBuffer, normBetaBuffer] = await Promise.all(tensorPromises);
 
-    return { normGammaBuffer, normBetaBuffer };
+     return { normGammaBuffer, normBetaBuffer };
   }
 
   async loadLayers(params, weightsFolder) {
-//  console.log("Loading layers...");
-    console.log('      loadLayers');
-    const layerPromises = [];
+//   console.log("Loading layers...");
+     console.log('      loadLayers');
+     const layerPromises = [];
 
-    for (let i = 0; i < params.n_layer; i++) {
-      layerPromises.push(this.loadLayer(params, weightsFolder, i));
-    }
+     for (let i = 0; i < params.n_layer; i++) {
+       layerPromises.push(this.loadLayer(params, weightsFolder, i));
+     }
 
-    console.log('       *await Promise.all(layerPromises)')
-    const layer_buffers = await Promise.all(layerPromises);
-    console.log(`       *await ended, layer_buffers.length = ${layer_buffers.lengty}`)
-    return layer_buffers;
+//   console.log('       *await Promise.all(layerPromises)')
+     const layer_buffers = await Promise.all(layerPromises);
+     console.log(`       *await ended, layer_buffers.length = ${layer_buffers.lengty}`)
+     return layer_buffers;
   }
 
   async loadLayer(params, weightsFolder, layerIndex) {
-    console.log("Starting to load layer...", layerIndex);
-    const prefix = `${weightsFolder}transformer.h.${layerIndex}.`;
+//   console.log("Starting to load layer...", layerIndex);
+     const prefix = `${weightsFolder}transformer.h.${layerIndex}.`;
 
-    // Create an array of promises for fetching and initializing the tensors
-    const tensorPromises = [
-      this.fetchAndInitTensor(`${prefix}ln_1.weight_gpt.bin`                  , [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_1.bias_gpt.bin`                    , [params.n_embd], ["storage"]),
-      this.fetchAndSplitQKVWeightTensors(`${prefix}attn.c_attn.weight_gpt.bin`, [params.n_embd, 3 * params.n_embd], ["storage"]),
-      this.fetchAndSplitQKVBiasTensors(`${prefix}attn.c_attn.bias_gpt.bin`    , [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}attn.c_proj.weight_gpt.bin`           , [params.n_embd, params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}attn.c_proj.bias_gpt.bin`             , [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_2.weight_gpt.bin`                  , [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}ln_2.bias_gpt.bin`                    , [params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_fc.weight_gpt.bin`              , [params.n_embd, params.hidden_size], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_fc.bias_gpt.bin`                , [params.hidden_size], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_proj.weight_gpt.bin`            , [params.hidden_size, params.n_embd], ["storage"]),
-      this.fetchAndInitTensor(`${prefix}mlp.c_proj.bias_gpt.bin`              , [params.n_embd], ["storage"]),
+  // Create an array of promises for fetching and initializing the tensors
+     const tensorPromises = [
+        this.fetchAndInitTensor           (`${prefix}ln_1.weight_gpt.bin`       , [params.n_embd                         ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}ln_1.bias_gpt.bin`         , [params.n_embd                         ], ["storage"]),
+        this.fetchAndSplitQKVWeightTensors(`${prefix}attn.c_attn.weight_gpt.bin`, [params.n_embd     , params.n_embd *3  ], ["storage"]),
+        this.fetchAndSplitQKVBiasTensors  (`${prefix}attn.c_attn.bias_gpt.bin`  , [params.n_embd                         ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}attn.c_proj.weight_gpt.bin`, [params.n_embd     , params.n_embd     ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}attn.c_proj.bias_gpt.bin`  , [params.n_embd                         ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}ln_2.weight_gpt.bin`       , [params.n_embd                         ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}ln_2.bias_gpt.bin`         , [params.n_embd                         ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}mlp.c_fc.weight_gpt.bin`   , [params.n_embd     , params.hidden_size], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}mlp.c_fc.bias_gpt.bin`     , [params.hidden_size                    ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}mlp.c_proj.weight_gpt.bin` , [params.hidden_size, params.n_embd     ], ["storage"]),
+        this.fetchAndInitTensor           (`${prefix}mlp.c_proj.bias_gpt.bin`   , [params.n_embd                         ], ["storage"]),
     ];
 
-    // Wait for all tensors to be fetched and initialized
-    const [
-      normAttentionGammaBuffer,
-      normAttentionBetaBuffer,
-      qkvWeightArray,
-      qkvBiasArray,
-      linearWeightsBuffer,
-      linearBiasBuffer,
-      normLinearGammaBuffer,
-      normLinearBetaBuffer,
-      firstLayerWeightsBuffer,
-      firstLayerBiasBuffer,
-      secondLayerWeightsBuffer,
-      secondLayerBiasBuffer,
-    ] = await Promise.all(tensorPromises);
+  // Wait for all tensors to be fetched and initialized
+     const [
+        normAttentionGammaBuffer,
+        normAttentionBetaBuffer,
+        qkvWeightArray,
+        qkvBiasArray,
+        linearWeightsBuffer,
+        linearBiasBuffer,
+        normLinearGammaBuffer,
+        normLinearBetaBuffer,
+        firstLayerWeightsBuffer,
+        firstLayerBiasBuffer,
+        secondLayerWeightsBuffer,
+        secondLayerBiasBuffer,
+     ] = await Promise.all(tensorPromises);
 
-    // Process the fetched data and return the layer buffers
-    return {
-      normAttentionGammaBuffer,
-      normAttentionBetaBuffer,
-      qkvWeightArray,
-      qkvBiasArray,
-      linearWeightsBuffer,
-      linearBiasBuffer,
-      normLinearGammaBuffer,
-      normLinearBetaBuffer,
-      firstLayerWeightsBuffer,
-      firstLayerBiasBuffer,
-      secondLayerWeightsBuffer,
-      secondLayerBiasBuffer,
-    };
+  // Process the fetched data and return the layer buffers
+     return {
+         normAttentionGammaBuffer,
+         normAttentionBetaBuffer,
+         qkvWeightArray,
+         qkvBiasArray,
+         linearWeightsBuffer,
+         linearBiasBuffer,
+         normLinearGammaBuffer,
+         normLinearBetaBuffer,
+         firstLayerWeightsBuffer,
+         firstLayerBiasBuffer,
+         secondLayerWeightsBuffer,
+         secondLayerBiasBuffer,
+     };
   }
 
   async fetchAndSplitQKVWeightTensors(url, dims, ops) {
-    const data = transpose(await fetchBin(url), dims[0], dims[1]);
+    const data = transpose(await fetchBin2Float32Array(url), dims[0], dims[1]);
 
-    const qWeights = transpose(data.subarray(0, dims[0] * dims[0]), dims[0], dims[0]);
-    const kWeights = transpose(data.subarray(dims[0] * dims[0], dims[0] * dims[0] * 2), dims[0], dims[0]);
+    const qWeights = transpose(data.subarray(0                    , dims[0] * dims[0]    ), dims[0], dims[0]);
+    const kWeights = transpose(data.subarray(dims[0] * dims[0]    , dims[0] * dims[0] * 2), dims[0], dims[0]);
     const vWeights = transpose(data.subarray(dims[0] * dims[0] * 2, dims[0] * dims[0] * 3), dims[0], dims[0]);
 
     const qWeightsBuffer = this.initTensor(qWeights, [dims[0], dims[0]], ops);
@@ -520,7 +536,7 @@ class GPT {
   }
 
   async fetchAndSplitQKVBiasTensors(url, dims, ops) {
-    const data = await fetchBin(url);
+    const data = await fetchBin2Float32Array(url);
 
     const qBias = data.subarray(0, dims[0]);
     const kBias = data.subarray(dims[0], dims[0] * 2);
@@ -535,11 +551,13 @@ class GPT {
 
   async fetchAndInitTensor(url, dims, ops) {
 //  console.log("Fetching and initializing tensor...", url);
-    const data = await fetchBin(url);
+    const data = await fetchBin2Float32Array(url);
     return this.initTensor(data, dims, ops);
   }
 
   initTensor(data, dims, ops) {
+//
+//  initTensor creates a GPUBuffer and returns it.
 //
 //  data: a  Float32Array
 //  dims: an Array  
@@ -552,13 +570,16 @@ class GPT {
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
       mappedAtCreation: true,
     };
+
 //  console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
-    console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
+//  console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
+
     const buffer = this.device.createBuffer({
       size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
       mappedAtCreation: true,
     });
+
     new Float32Array(buffer.getMappedRange()).set(data);
     buffer.unmap();
     this.unloadDeletionStack.push(buffer);
@@ -572,7 +593,7 @@ class GPT {
 
   bufferSize(dimX, dimY = 1, dimZ = 1) {
     const size = Math.ceil((dimX * dimY * dimZ * Float32Array.BYTES_PER_ELEMENT) / this.minBufferOffset) * this.minBufferOffset;
-    console.log(`            buffersSize = ${Math.round(100*size/1024/1024)/100} MB = ${dimX} * ${dimY} * ${dimZ} * 4 (Float32Array.BYTES_PER_ELEMENT = ${Float32Array.BYTES_PER_ELEMENT}).`)
+//  console.log(`            buffersSize = ${Math.round(100*size/1024/1024)/100} MB = ${dimX} * ${dimY} * ${dimZ} * 4 (Float32Array.BYTES_PER_ELEMENT = ${Float32Array.BYTES_PER_ELEMENT}).`)
     if (size > this.device.limits.maxStorageBufferBindingSize)
 //    console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
       console.warn("                Warning: Buffer size exceeds GPU limit");

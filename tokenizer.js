@@ -59,46 +59,31 @@ class GPT2Tokenizer extends Tokenizer {
 //  console.log("Loading GPT2 tokenizer...");
 
     const bpe_file = await (await fetch("weights/tokenization/vocab.bpe")).text();
-//  const encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
-//  this.encoder = encoder;
     this.encoder = await (await fetch("weights/tokenization/gpt_tokens.json")).json();
 
  // The type of this.encoder (as well as also this.decoder) is Object.
 
-//  console.log("Building decoder...");
     console.log('     Building decoder');
-//  const decoder = {};
     this.decoder  = {};
-//  Object.keys(encoder).map((x) => {
     Object.keys(this.encoder).map((x) => {
-//    decoder[encoder[x]] = x;
       this.decoder[this.encoder[x]] = x;
     });
-//  this.decoder = decoder;
 
-    console.log(`    encoder = ${this.encoder.constructor.name}`, this.encoder);
-    console.log(`    decoder = ${this.decoder.constructor.name}`, this.decoder);
+//  console.log(`    encoder = ${this.encoder.constructor.name}`, this.encoder);
+//  console.log(`    decoder = ${this.decoder.constructor.name}`, this.decoder);
 
     const lines = bpe_file.split("\n");
     console.log(`     lines.length = ${lines.length}`);
 
  // Turn the lines in vocab.bpe into an array of arrays of two strings:
- /*
-    const bpe_merges = lines.slice(1, lines.length - 1).map((x) => {
-      return x.split(/(\s+)/).filter(function (e) {
-        return e.trim().length > 0;
-      });
-    });
-*/
     const bpe_merges = lines.slice(1, lines.length - 1).map((x) => {
       return x.split(/\s+/); //.filter(function (e) {
- //        return e.trim().length > 0;
-      });
-//  });
-    console.log(`     bpe_merges.length = ${bpe_merges.length}`);
-    console.log(`     bpe_merges[0] = ${bpe_merges[0]}`);
-    console.log(`     bpe_merges[1] = ${bpe_merges[1]}`);
-    console.log(`     bpe_merges[6] = ${bpe_merges[6]}`);
+    });
+
+//  console.log(`     bpe_merges.length = ${bpe_merges.length}`);
+//  console.log(`     bpe_merges[0] = ${bpe_merges[0]}`);
+//  console.log(`     bpe_merges[1] = ${bpe_merges[1]}`);
+//  console.log(`     bpe_merges[6] = ${bpe_merges[6]}`);
 
     const byte_encoder = bytes_to_unicode();
     const byte_decoder = {};
@@ -111,7 +96,6 @@ class GPT2Tokenizer extends Tokenizer {
     this.bpe_ranks = dictZip(bpe_merges, range(0, bpe_merges.length));
 
     this.cache = new Map();
-//  this.vocab_size = Object.keys(encoder).length;
     this.vocab_size = Object.keys(this.encoder).length;
   }
 
@@ -129,14 +113,12 @@ class GPT2Tokenizer extends Tokenizer {
 
       let utf8_bytes_printable = [];
       for (let i = 0; i < utf8_bytes.length; i++) {
-        console.log(` encoded_byte = ${utf8_bytes[i]} pushed: ${this.byte_encoder[utf8_bytes[i]]}`);
-//      utf8_bytes_printable.push(this.byte_encoder[utf8_bytes[i].toString()]);
-        utf8_bytes_printable.push(this.byte_encoder[utf8_bytes[i]           ]);
+//      console.log(` encoded_byte = ${utf8_bytes[i]} pushed: ${this.byte_encoder[utf8_bytes[i]]}`);
+        utf8_bytes_printable.push(this.byte_encoder[utf8_bytes[i]]);
       }
       let bytes_str = utf8_bytes_printable.join("");
 
       const new_tokens = this.bpe(bytes_str)
-//      .split(" ")
         .map((x) => this.encoder[x]);
 
       bpe_tokens = bpe_tokens.concat(new_tokens);
@@ -180,9 +162,9 @@ class GPT2Tokenizer extends Tokenizer {
       const rank2pair = {};
 
       pairs.forEach(pair => {
-        console.log('   forEach(pair) = ', pair);
+//      console.log('   forEach(pair) = ', pair);
         const rank = this.bpe_ranks[pair];
-        console.log('   rank = ', rank);
+//      console.log('   rank = ', rank);
         rank2pair[isNaN(rank) ? 10e10 : rank] = pair;
       });
 
@@ -190,7 +172,7 @@ class GPT2Tokenizer extends Tokenizer {
    // Even though the dictionary's elements were assigned with
    // integer keys, they seem to be stored with strings.
       const ranks = Object.keys(rank2pair).map((x) => parseInt(x));
-      console.log('   ranks = ', ranks);
+//    console.log('   ranks = ', ranks);
 
 
    // Find the pair (bigram) with the minimal rank:
@@ -201,13 +183,14 @@ class GPT2Tokenizer extends Tokenizer {
    // The bigram with the minimal rank is not found in vocab.bpe,
    // we're brekaing out of the loop.
    // TODO, is this not the same as ranks being equal to [10e10] ?
-         console.log(`   !Object.hasOwn ${bigram_min_rank}, breaking out`);
+//       console.log(`   !Object.hasOwn ${bigram_min_rank}, breaking out`);
          break;
       }
 
+
       const first  = bigram_min_rank[0];
       const second = bigram_min_rank[1];
-      console.log(`   first = ${first}, second = ${second}`);
+//    console.log(`   first = ${first}, second = ${second}`);
 
       let new_word = [];
       let i = 0;
@@ -242,13 +225,9 @@ class GPT2Tokenizer extends Tokenizer {
       }
     }
 
-    const bpe_ret = word; // word.join(' ');
-//  word = word.join(" ");
+    const bpe_ret = word;
     this.cache.set(token, bpe_ret);
-//  this.cache.set(token, word);
-//  console.log(`   bpe, returning ${word} (${word.constructor.name})`);
     console.log(`   bpe, returning ${bpe_ret} (${bpe_ret.constructor.name})`);
-//  return word;
     return bpe_ret;
   }
 }
@@ -279,40 +258,40 @@ const dictZip = (x, y) => {
 };
 
 const bytes_to_unicode = () => {
-  console.log(`  bytes_to_unicode`);
-  const bs = range(ord("!"), ord("~") + 1).concat(range(ord("¡"), ord("¬") + 1), range(ord("®"), ord("ÿ") + 1));
+   console.log(`  bytes_to_unicode`);
+   const bs = range(ord("!"), ord("~") + 1).concat(range(ord("¡"), ord("¬") + 1), range(ord("®"), ord("ÿ") + 1));
 
 //
 // Copy bs
-  let cs = bs.slice();
+   let cs = bs.slice();
 
 
 //
 // Initially, both, bs and cs are arrays with 188 elements.
 //
-  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
+// console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
 
-  let n = 0;
-  for (let b = 0; b < 2 ** 8; b++) {  // for b = 0 .. 255
-//  console.log(`   b=${b}`);
-    if (!bs.includes(b)) {
-      console.log(`   b is not included in bs`);
-      bs.push(b);
-      cs.push(2 ** 8 + n);
-      n = n + 1;
-    }
-  }
+   let n = 0;
+   for (let b = 0; b < 2 ** 8; b++) {  // for b = 0 .. 255
+// console.log(`   b=${b}`);
+      if (!bs.includes(b)) {
+//       console.log(`   b is not included in bs`);
+         bs.push(b);
+         cs.push(2 ** 8 + n);
+         n = n + 1;
+      }
+   }
 
 //
 // Now, their length has increased to 256:
 //
-  console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
+// console.log(`   bs.length = ${bs.length} cs.length = ${cs.length}, bs.constructor.name = ${bs.constructor.name}, cs.constructor.name = ${cs.constructor.name}`, bs, cs);
 
-  cs = cs.map((x) => String.fromCharCode(x));
-  const result = {};
-  bs.map((_, i) => {
-    result[bs[i]] = cs[i];
-  });
+   cs = cs.map((x) => String.fromCharCode(x));
+   const result = {};
+   bs.map((_, i) => {
+      result[bs[i]] = cs[i];
+   });
 
 //
 // result is an Object whose keys are the integers 0 .. 255
@@ -334,8 +313,8 @@ const bytes_to_unicode = () => {
 //          ...
 //    }
 //
-  console.log(`   bytes_to_unicode: length of result = ${result.length}, constructor name = ${result.constructor.name}`, result);
-  return result;
+// console.log(`   bytes_to_unicode: length of result = ${result.length}, constructor name = ${result.constructor.name}`, result);
+   return result;
 };
 
 const get_bigrams = (grams) => {
