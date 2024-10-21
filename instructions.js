@@ -95,12 +95,12 @@ class Block {
         })),
       });
 
-    this.r_r_r_r_Layout = bg(["read-only-storage", "read-only-storage", "read-only-storage", "read-only-storage"]);
-    this.r_r_r_Layout   = bg(["read-only-storage", "read-only-storage", "read-only-storage"]);
-    this.r_r_Layout     = bg(["read-only-storage", "read-only-storage"]);
-    this.r_Layout       = bg(["read-only-storage"]);
-    this.u_s_Layout     = bg(["uniform", "storage"]);
-    this.u_s_s_s_Layout = bg(["uniform", "storage", "storage", "storage"]);
+    this.r_r_r_r_Layout = bg(["read-only-storage", "read-only-storage", "read-only-storage", "read-only-storage"]); // Used in                                           LayerNormBlockClass
+    this.r_r_r_Layout   = bg(["read-only-storage", "read-only-storage", "read-only-storage"                     ]); // Used in FastMatMulBlockClass
+    this.r_r_Layout     = bg(["read-only-storage", "read-only-storage"                                          ]); // Used in                       ResidualBlockClass,                                                         DeEmbedBlockClass, AttentionBlockClass
+    this.r_Layout       = bg(["read-only-storage"                                                               ]); // Used in                                           LayerNormBlockClass, SoftmaxBlockClass, GeluBlockClass,                    AttentionBlockClass
+    this.u_s_Layout     = bg(["uniform", "storage"                                                              ]); // Used in FastMatMulBlockClass, ResidualBlockClass, LayerNormBlockClass, SoftmaxBlockClass, GeluBlockClass, DeEmbedBlockClass, AttentionBlockClass
+//  this.u_s_s_s_Layout = bg(["uniform", "storage", "storage", "storage"]);
   }
 
   initPipeline(code, bindGroupLayouts, label = "", constants = {}) {
