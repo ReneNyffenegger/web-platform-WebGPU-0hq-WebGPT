@@ -72,11 +72,12 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
         webgpuSupportMessage.innerHTML =
           "WebGPU is not supported in your browser yet. Update Chrome to v113 or download <a href='https://www.google.com/chrome/canary/'>Chrome Canary</a>. Also available on <a href='https://www.microsoftedgeinsider.com/en-us/download/canary'>Edge Canary</a>.";
         console.error("WebGPU is not supported");
-      } else {
+      }
+      else {
         webgpuSupportMessage.innerHTML = "WebGPU is supported in your browser!";
         setModelButtonDisabled(false);
 
-        tq84_init();
+//      tq84_init();
       }
 
       async function startGeneration() {

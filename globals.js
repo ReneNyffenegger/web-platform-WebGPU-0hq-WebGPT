@@ -11,10 +11,10 @@ const SoftmaxBlock    = new SoftmaxBlockClass();
 let operations = [FastMatMulBlock, AttentionBlock, ResidualBlock, EmbedBlock, DeEmbedBlock, GeluBlock, LayerNormBlock, SoftmaxBlock];
 
 function initializeOperations(device) {
-  console.log('    initializeOperations')
-  for (const operation of operations) {
-    console.log(`       op: ${operation.constructor.name}`)
-    operation.initialize(device);
+   console.log('    globals.js: initializeOperations')
+   for (const operation of operations) {
+//   console.log(`       op: ${operation.constructor.name}`)
+     operation.initialize(device);
   }
 }
 

@@ -11,7 +11,7 @@ class Block {
   }
 
   initialize(device) {
-    console.log(`         initialize device in Block`);
+//  console.log(`         initialize device in Block`);
     this.device = device;
     this.initBindGroups();
     this.pipelineCache      = new Map();
@@ -91,7 +91,7 @@ class Block {
 
   // Could be removed with auto bind groups, currently initializing everytime so probably slowing things down.
   initBindGroups() {
-    console.log(`           Block.initBindGroups`);
+//  console.log(`           Block.initBindGroups`);
 
     const bg = (types) =>
       this.device.createBindGroupLayout({

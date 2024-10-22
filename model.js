@@ -1,3 +1,34 @@
+
+function tq84_spaces(n) { return ' '.repeat(n*2); }
+function tq84_dumpObjectStructure(obj, indent=0) {
+// console.log(tq84_dumpObjectStructure( [1, 2, {x: null, y: "foo bar baz", z:{ ary: ['x', 'y', navigator.gpu, 'z'], emptyObj: {} }} ]  ))
+
+   if (Array.isArray(obj)) {
+      return "[\n" +
+         obj.map( item => tq84_dumpObjectStructure(item, indent+1)).join(",\n" + tq84_spaces(indent)) +
+        "]\n";
+   }
+
+   if (typeof obj === 'object' && obj !== null) {
+      let dump = "{\n";
+      for (let k in obj) {
+         dump = dump + tq84_spaces(indent) + `${k}: ${tq84_dumpObjectStructure(obj[k], indent+1)}` + "\n";
+      }
+      dump = dump + "\n" + tq84_spaces(indent) + "}";
+      return dump;
+   }
+
+   if (obj === null) {
+      return 'null';
+   }
+
+   return typeof(obj);
+
+}
+
+
+
+
 class GPT {
   constructor(folder, type) {
     this.folder = folder;
@@ -320,7 +351,13 @@ class GPT {
 
     const params = await this.loadParameters(weightsFolder);
     const { embeddingsBuffers, deEmbeddingsBuffers } = await this.loadEmbeddings(params, weightsFolder);
-//  console.log(`     loadEmbeddings returned embeddingsBuffers.length = ${embeddingsBuffers.length}, deEmbeddingsBuffers.length = ${deEmbeddingsBuffers.length}`);
+    console.log(`     loadEmbeddings returned embeddingsBuffers.length = ${embeddingsBuffers.length} (${embeddingsBuffers.constructor.name}), deEmbeddingsBuffers.length = ${deEmbeddingsBuffers.length}`);
+
+    console.log('embeddingsBuffers = ');
+    console.log(tq84_dumpObjectStructure(embeddingsBuffers));
+    console.log('deEmbeddingsBuffers = ');
+    console.log(tq84_dumpObjectStructure(deEmbeddingsBuffers));
+
 
     const { posEmbdBuffer } = await this.loadPositionalEmbeddings(params, weightsFolder);
     const layer_buffers = await this.loadLayers(params, weightsFolder);
@@ -334,63 +371,63 @@ class GPT {
   }
 
   async loadParameters(weightsFolder) {
-    console.log('      loadParameters');
-//  console.log("Loading params...");
-    const params = await (await fetch(`${weightsFolder}/params_gpt.json`)).json();
-    console.log(`       ${JSON.stringify(params)}`);
-    console.log(`       vocab_size: ${params.vocab_size}`);
-    console.log(`       n_embd:     ${params.n_embd}`);
-    console.log(`       n_ctx:      ${params.n_ctx}`);
+     console.log('      loadParameters');
+//   console.log("Loading params...");
+     const params = await (await fetch(`${weightsFolder}/params_gpt.json`)).json();
+     console.log(`       ${JSON.stringify(params)}`);
+     console.log(`       vocab_size: ${params.vocab_size}`);
+     console.log(`       n_embd:     ${params.n_embd}`);
+     console.log(`       n_ctx:      ${params.n_ctx}`);
 
- // Did you enable GitHub LFS? Won't work without it.
-    if (params.n_embd % 4 !== 0) throw new Error("Model load failed: n_embd must be divisible by 4.");
-    if (params.n_embd % params.n_head !== 0) throw new Error("Model load failed: n_embd must be divisible by n_head.");
+  // Did you enable GitHub LFS? Won't work without it.
+     if (params.n_embd % 4 !== 0) throw new Error("Model load failed: n_embd must be divisible by 4.");
+     if (params.n_embd % params.n_head !== 0) throw new Error("Model load failed: n_embd must be divisible by n_head.");
 
- // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
-    if ((params.n_embd / params.n_head) % 4 !== 0) throw new Error("Model load failed: n_embd / n_head must be divisible by 4.");
-    const tokenParam = this.bufferSize(params.vocab_size, params.n_embd);
-    console.log(`       tokenParam = ${tokenParam} (vocab_size * n_embd * 4 = ${params.vocab_size * params.n_embd * 4})`);
-    let minSplits = Math.ceil(tokenParam / this.device.limits.maxStorageBufferBindingSize);
-    console.log(`       minSplits = ${minSplits}`);
+  // I'm unsure if this is a reasonable requirement here. At worst, I can figure out some padding method.
+     if ((params.n_embd / params.n_head) % 4 !== 0) throw new Error("Model load failed: n_embd / n_head must be divisible by 4.");
+     const tokenParam = this.bufferSize(params.vocab_size, params.n_embd);
+     console.log(`       tokenParam = ${tokenParam} (vocab_size * n_embd * 4 = ${params.vocab_size * params.n_embd * 4})`);
+     let minSplits = Math.ceil(tokenParam / this.device.limits.maxStorageBufferBindingSize);
+     console.log(`       minSplits = ${minSplits}`);
 
-    function vocabChunkSizeCalc(vocab_size, n_embd, splits, maxStorageBufferBindingSize) {
-    // Possibly could be better? Needs actual benchmarking to know what approach is best.
-      const optimisticSize = Math.ceil (vocab_size / splits / 4) * 4 * n_embd;
-      const pessimiticSize = Math.floor(vocab_size / splits / 4) * 4 * n_embd;
-      let vocab_chunk_size = optimisticSize;
-      if (optimisticSize > maxStorageBufferBindingSize) {
-        vocab_chunk_size = pessimiticSize;
-        if (pessimiticSize * splits < tokenParam) {
-          return vocabChunkSizeCalc(vocab_size, n_embd, splits + 1, maxStorageBufferBindingSize);
-        }
-      }
-      return { vocab_chunk_size: vocab_chunk_size / n_embd, splits };
-    }
+     function vocabChunkSizeCalc(vocab_size, n_embd, splits, maxStorageBufferBindingSize) {
+     // Possibly could be better? Needs actual benchmarking to know what approach is best.
+       const optimisticSize = Math.ceil (vocab_size / splits / 4) * 4 * n_embd;
+       const pessimiticSize = Math.floor(vocab_size / splits / 4) * 4 * n_embd;
+       let vocab_chunk_size = optimisticSize;
+       if (optimisticSize > maxStorageBufferBindingSize) {
+         vocab_chunk_size = pessimiticSize;
+         if (pessimiticSize * splits < tokenParam) {
+           return vocabChunkSizeCalc(vocab_size, n_embd, splits + 1, maxStorageBufferBindingSize);
+         }
+       }
+       return { vocab_chunk_size: vocab_chunk_size / n_embd, splits };
+     }
 
-    const { vocab_chunk_size, splits } = vocabChunkSizeCalc(params.vocab_size, params.n_embd, minSplits, this.device.limits.maxStorageBufferBindingSize);
-    console.log(`       vocab_chunk_size = ${vocab_chunk_size}, splits = ${splits}`);
+     const { vocab_chunk_size, splits } = vocabChunkSizeCalc(params.vocab_size, params.n_embd, minSplits, this.device.limits.maxStorageBufferBindingSize);
+     console.log(`       vocab_chunk_size = ${vocab_chunk_size}, splits = ${splits}`);
 
-    if (splits > minSplits) console.warn(`Non-optimal number of vocab splits. Optimal: ${minSplits}, Selected: ${splits}`);
+     if (splits > minSplits) console.warn(`Non-optimal number of vocab splits. Optimal: ${minSplits}, Selected: ${splits}`);
 
- // Set derived parameters
-    params.vocab_chunk_size      = vocab_chunk_size;
-    params.vocab_chunk_instances = splits;
-    params.head_size             = params.n_embd / params.n_head;
-    params.hidden_size           = params.n_embd * 4;
-    params.attention_scale       = 1 / Math.sqrt(params.n_embd / params.n_head);
-    params.bias                  = params.bias == undefined ? true : params.bias;
+  // Set derived parameters
+     params.vocab_chunk_size      = vocab_chunk_size;
+     params.vocab_chunk_instances = splits;
+     params.head_size             = params.n_embd / params.n_head;
+     params.hidden_size           = params.n_embd * 4;
+     params.attention_scale       = 1 / Math.sqrt(params.n_embd / params.n_head);
+     params.bias                  = params.bias == undefined ? true : params.bias;
 
-    // Check for overflow in buffers larger than maxStorageBufferBindingSize
-    const maxBufferSize = this.device.limits.maxStorageBufferBindingSize / 4;
-    if (params.n_embd * params.n_ctx                 > maxBufferSize) console.warn("Model load failed: n_embd * n_ctx must be less than maxStorageBufferBindingSize.");
-    if (params.n_embd * params.hidden_size           > maxBufferSize) console.warn("Model load failed: n_embd * hidden_size must be less than maxStorageBufferBindingSize.");
-    if (params.n_ctx  * params.n_ctx * params.n_head > maxBufferSize) console.warn("Model load failed: n_ctx * n_ctx must be less than maxStorageBufferBindingSize.");
-    if (params.n_embd * params.n_embd * 3            > maxBufferSize) console.warn("Model load failed: n_embd * n_embd * 3 must be less than maxStorageBufferBindingSize.");
+     // Check for overflow in buffers larger than maxStorageBufferBindingSize
+     const maxBufferSize = this.device.limits.maxStorageBufferBindingSize / 4;
+     if (params.n_embd * params.n_ctx                 > maxBufferSize) console.warn("Model load failed: n_embd * n_ctx must be less than maxStorageBufferBindingSize.");
+     if (params.n_embd * params.hidden_size           > maxBufferSize) console.warn("Model load failed: n_embd * hidden_size must be less than maxStorageBufferBindingSize.");
+     if (params.n_ctx  * params.n_ctx * params.n_head > maxBufferSize) console.warn("Model load failed: n_ctx * n_ctx must be less than maxStorageBufferBindingSize.");
+     if (params.n_embd * params.n_embd * 3            > maxBufferSize) console.warn("Model load failed: n_embd * n_embd * 3 must be less than maxStorageBufferBindingSize.");
 
-//  console.log("Params:", params);
-    console.log("       Params:", params);
+//   console.log("Params:", params);
+     console.log("       Params:", params);
 
-    return params;
+     return params;
   }
 
   async loadEmbeddings(params, weightsFolder) {
