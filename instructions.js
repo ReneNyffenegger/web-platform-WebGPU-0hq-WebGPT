@@ -159,7 +159,6 @@ class Block {
 class FastMatMulBlockClass extends Block {
   constructor() {
     super("fastMatMul");
-//  this.name = "fastMatMul";
   }
 
   getPipeline(rows) {
@@ -338,9 +337,9 @@ class FastMatMulBlockClass extends Block {
 }
 
 class ResidualBlockClass extends Block {
+
   constructor() {
     super("residual");
-//  this.name = "residual";
   }
 
   getPipeline() {
@@ -405,7 +404,6 @@ class ResidualBlockClass extends Block {
 class LayerNormBlockClass extends Block {
   constructor() {
     super("layerNorm");
-//  this.name = "layerNorm";
   }
 
   getStatsPipeline(workgroups) {
@@ -571,7 +569,6 @@ class LayerNormBlockClass extends Block {
 class SoftmaxBlockClass extends Block {
   constructor() {
     super("softmax");
-//  this.name = "softmax";
   }
 
   getFusedPipeline(workgroups, transpose) {
@@ -687,7 +684,6 @@ class SoftmaxBlockClass extends Block {
 class GeluBlockClass extends Block {
   constructor() {
     super("gelu");
-//  this.name = "gelu";
   }
 
   getPipeline() {
@@ -772,53 +768,14 @@ class EmbedBlockClass extends Block {
 //  this.name = "embed";
   }
 
-/*
-  staticLoad(embdOutputBuffer, posEmbdOutputBuffer, embdBuffers, posEmbdBuffer, idx, seq_length, n_embd, vocab_chunk_size) {
-console.log('**** EmbedBlockClass.staticLoad() ****')
- // Can build a cache later.
-    const embdCopyCommands = Array(seq_length)
-      .fill()
-      .map((_, i) => {
-        const chunkOffset = Math.floor(idx[i] / vocab_chunk_size);
-        const chunkIdx = idx[i] % vocab_chunk_size;
-
-        return {
-          flag: "copy",
-          src: embdBuffers[chunkOffset],
-          srcOffset: this.bufferSize(n_embd) * chunkIdx,
-          dst: embdOutputBuffer,
-          dstOffset: this.bufferSize(n_embd) * i,
-          size: this.bufferSize(n_embd),
-        };
-      });
-
-    // Also can be cached.
-    const posCopyCommand = {
-      flag: "copy",
-      src: posEmbdBuffer,
-      srcOffset: 0,
-      dst: posEmbdOutputBuffer,
-      dstOffset: 0,
-      size: this.bufferSize(seq_length, n_embd),
-    };
-
-    return {
-      passes: [...embdCopyCommands, posCopyCommand],
-    };
-  }
-*/
-
-// newInstance(idx, seq_length, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
-   newInstance(idx,             n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock) {
+// newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock)
+   newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer               ) {
       console.log('      EmbedBlockClass.newInstance');
 
-//    const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
-//    const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [seq_length, n_embd]);
       const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [idx.length, n_embd]);
       const posEmbdOutputBuffer = this.initBuffer(["storage", "copy_to"], [idx.length, n_embd]);
 
    // Can build a cache later.
-//    const embdCopyCommands = Array(seq_length)
       const embdCopyCommands = Array(idx.length)
         .fill()
         .map((_, i) => {
@@ -844,11 +801,9 @@ console.log('**** EmbedBlockClass.staticLoad() ****')
         srcOffset: 0,
         dst: posEmbdOutputBuffer,
         dstOffset: 0,
-//      size: this.bufferSize(seq_length, n_embd),
         size: this.bufferSize(idx.length, n_embd),
       };
 
-//    const { resultBuffer: residualResult, passes: residualPasses } = ResidualBlock.newInstance(seq_length, n_embd, embdOutputBuffer, posEmbdOutputBuffer);
       const { resultBuffer: residualResult, passes: residualPasses } = ResidualBlock.newInstance(idx.length, n_embd, embdOutputBuffer, posEmbdOutputBuffer);
 
       return {
@@ -861,7 +816,6 @@ console.log('**** EmbedBlockClass.staticLoad() ****')
 class DeEmbedBlockClass extends Block {
   constructor() {
     super("deembed");
-//  this.name = "deembed";
   }
 
   getPipeline() {
@@ -986,7 +940,6 @@ class DeEmbedBlockClass extends Block {
 class AttentionBlockClass extends Block {
   constructor() {
     super("attention");
-//  this.name = "attention";
   }
 
   getNewAttentionWeightsPipeline() {
