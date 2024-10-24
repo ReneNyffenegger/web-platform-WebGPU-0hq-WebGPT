@@ -43,7 +43,7 @@ class GPT {
     this.initialized = false;
 
     this.device;
-    this.model;
+    this.model = {};
     this.tokenizer;
     this.params;
     this.minBufferOffset = 1;
@@ -72,10 +72,9 @@ class GPT {
     initializeOperations(this.device);
 
     this.weightsFolder = `weights/${this.folder}/`;
-    await this.loadParameters();
 
-//  [this.model, this.params] = await this.loadModel(this.folder);
-    [this.model             ] = await this.loadModel(this.folder);
+    await this.loadParameters();
+    await this.loadModel();
 
     this.tokenizer = this.tokenizerType == "bpe" ? new GPT2Tokenizer() : new SimpleTokenizer();
     console.log('   call this.tokenizer.load');
@@ -178,7 +177,7 @@ class GPT {
     let residualBuffer;
 
     {
-      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, this.params.n_embd, this.params.vocab_chunk_size, this.embeddingsBuffers, this.model.posEmbdBuffer);
+      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, this.params.n_embd, this.params.vocab_chunk_size, this.embeddingsBuffers, this.posEmbdBuffer);
 
       console.log('flags: '     + passes.map( (p) => p.flag      ).join(', '));
       console.log('srcOffset: ' + passes.map( (p) => p.srcOffset ).join(', '));
@@ -318,7 +317,7 @@ class GPT {
     }
 
     {
-      const { passes, resultBuffer } = LayerNormBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, this.model.normGammaBuffer, this.model.normBetaBuffer);
+      const { passes, resultBuffer } = LayerNormBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, this.normGammaBuffer, this.normBetaBuffer);
       intermediateBuffer = resultBuffer;
       this.computePasses.push(...passes);
     }
@@ -377,12 +376,10 @@ class GPT {
     return outputArray;
   }
 
-  async loadModel(folder) {
+  async loadModel() {
 
-    console.log(`    loadModel folder=${folder}`);
+    console.log(`    loadModel`);
     if (this.initialized) return console.error("Model already loaded");
-
-//  console.log("Loading model from folder:", folder);
 
     await this.loadEmbeddings();
 
@@ -394,27 +391,28 @@ class GPT {
 //  console.log(tq84_dumpObjectStructure(deEmbeddingsBuffers));
 
 
-    const { posEmbdBuffer } = await this.loadPositionalEmbeddings();
+//  const { posEmbdBuffer } = await this.loadPositionalEmbeddings();
+                              await this.loadPositionalEmbeddings();
     console.log('posEmbdBuffer = ');
-    console.log(tq84_dumpObjectStructure(posEmbdBuffer));
+    console.log(tq84_dumpObjectStructure(this.posEmbdBuffer));
 
     this.layer_buffers  = await this.loadLayers();
     console.log('this.layer_buffers = ');
     console.log(tq84_dumpObjectStructure(this.layer_buffers));
 
 //  console.log("Loading final layer norm...");
-    const { normGammaBuffer, normBetaBuffer } = await this.loadFinalLayerNorm();
+//  const { normGammaBuffer, normBetaBuffer } = await this.loadFinalLayerNorm();
+    await this.loadFinalLayerNorm();
     console.log('normGammaBuffer = ');
-    console.log(tq84_dumpObjectStructure(normGammaBuffer));
-    console.log('normBetaBuffer = ');
-    console.log(tq84_dumpObjectStructure(normBetaBuffer));
+//  console.log(tq84_dumpObjectStructure(normGammaBuffer));
+//  console.log('normBetaBuffer = ');
+//  console.log(tq84_dumpObjectStructure(normBetaBuffer));
 
-    const output = {posEmbdBuffer, normGammaBuffer, normBetaBuffer };
+//  const output = {posEmbdBuffer, normGammaBuffer, normBetaBuffer };
+
 //  console.log('output = ');
 //  console.log(tq84_dumpObjectStructure(output));
 
-    console.log("Finished loading model.", output, this.params);
-    return [output];
   }
 
   async loadParameters() {
@@ -510,15 +508,13 @@ class GPT {
       this.deEmbeddingsBuffers.push(this.initTensor(chunk, [this.params.n_embd, this.params.vocab_chunk_size], ["storage"]));
     }
 
-//  return { embeddingsBuffers, deEmbeddingsBuffers };
   }
 
   async loadPositionalEmbeddings() {
 //  console.log('      loadPositionalEmbeddings');
     const posEmbeddings = await fetchBin2Float32Array(`${this.weightsFolder}/transformer.wpe.weight_gpt.bin`);
-    const posEmbdBuffer = this.initTensor(posEmbeddings, [this.params.n_ctx, this.params.n_embd], ["copy_from"]);
+    this.posEmbdBuffer = this.initTensor(posEmbeddings, [this.params.n_ctx, this.params.n_embd], ["copy_from"]);
 
-    return { posEmbdBuffer };
   }
 
   async loadFinalLayerNorm() {
@@ -530,9 +526,8 @@ class GPT {
         this.fetchAndInitTensor(`${prefix}bias_gpt.bin`  , [this.params.n_embd], ["storage"]),
      ];
 
-     const [normGammaBuffer, normBetaBuffer] = await Promise.all(tensorPromises);
+     [this.normGammaBuffer, this.normBetaBuffer] = await Promise.all(tensorPromises);
 
-     return { normGammaBuffer, normBetaBuffer };
   }
 
   async loadLayers() {

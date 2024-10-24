@@ -768,8 +768,7 @@ class EmbedBlockClass extends Block {
 //  this.name = "embed";
   }
 
-// newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer, ResidualBlock)
-   newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer               ) {
+   newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer) {
       console.log('      EmbedBlockClass.newInstance');
 
       const embdOutputBuffer    = this.initBuffer(["storage", "copy_to"], [idx.length, n_embd]);
