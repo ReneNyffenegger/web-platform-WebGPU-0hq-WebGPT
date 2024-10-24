@@ -1,28 +1,31 @@
 
 function tq84_spaces(n) { return ' '.repeat(n*2); }
 function tq84_dumpObjectStructure(obj, indent=0) {
-// console.log(tq84_dumpObjectStructure( [1, 2, {x: null, y: "foo bar baz", z:{ ary: ['x', 'y', navigator.gpu, 'z'], emptyObj: {} }} ]  ))
+// console.log(tq84_dumpObjectStructure( [1, 2, 3 ]))
+// console.log(tq84_dumpObjectStructure( [1, ['a', 'b', 'c'], 3 ]))
+// console.log(tq84_dumpObjectStructure( [1, 2, ['level', 'one', 'array'], {x: null, y: "foo bar baz", z:{ ary: ['x', 'y', navigator.gpu, 'z'], emptyObj: {} }} ]  ))
 
    if (Array.isArray(obj)) {
       return "[\n" +
-         obj.map( item => tq84_dumpObjectStructure(item, indent+1)).join(",\n" + tq84_spaces(indent)) +
-        "]\n";
+         obj.map( item => tq84_spaces(indent+1) + tq84_dumpObjectStructure(item, indent+1)).join(",\n") +
+        "\n" + tq84_spaces(indent) + "]";
    }
 
-   if (typeof obj === 'object' && obj !== null) {
-      let dump = "{\n";
-      for (let k in obj) {
-         dump = dump + tq84_spaces(indent) + `${k}: ${tq84_dumpObjectStructure(obj[k], indent+1)}` + "\n";
-      }
-      dump = dump + "\n" + tq84_spaces(indent) + "}";
-      return dump;
+   if (typeof obj === 'object' && obj !== null /* && obj.constructor.name == 'Object' */ ) {
+
+      return "{\n" +
+        Object.keys(obj).map(
+           k => tq84_spaces(indent+1) + k + ': ' + tq84_dumpObjectStructure(obj[k], indent+1)
+        ).join(",\n" ) +
+      "\n" + tq84_spaces(indent) + "}";
+
    }
 
    if (obj === null) {
       return 'null';
    }
 
-   return typeof(obj);
+   return '<' + typeof(obj) + '>';
 
 }
 
