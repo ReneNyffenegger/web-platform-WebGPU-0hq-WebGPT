@@ -765,7 +765,6 @@ class GeluBlockClass extends Block {
 class EmbedBlockClass extends Block {
   constructor() {
     super("embed");
-//  this.name = "embed";
   }
 
    newInstance(idx, n_embd, vocab_chunk_size, embdBuffers, posEmbdBuffer) {

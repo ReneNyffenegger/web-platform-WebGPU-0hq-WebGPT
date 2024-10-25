@@ -176,8 +176,11 @@ class GPT {
     let intermediateBuffer;
     let residualBuffer;
 
-    {
-      const { passes, resultBuffer } = EmbedBlock.newInstance(idx, this.params.n_embd, this.params.vocab_chunk_size, this.embeddingsBuffers, this.posEmbdBuffer);
+    let passes, resultBuffer;
+
+//  {
+
+      ({ passes, resultBuffer } = EmbedBlock.newInstance(idx, this.params.n_embd, this.params.vocab_chunk_size, this.embeddingsBuffers, this.posEmbdBuffer));
 
       console.log('flags: '     + passes.map( (p) => p.flag      ).join(', '));
       console.log('srcOffset: ' + passes.map( (p) => p.srcOffset ).join(', '));
@@ -202,30 +205,39 @@ class GPT {
       console.log(tq84_dumpObjectStructure(resultBuffer));
 
       intermediateBuffer = resultBuffer;
-      residualBuffer = resultBuffer;
+      residualBuffer     = resultBuffer;
       this.computePasses.push(...passes);
-    }
+
+ // }
 
 
     for (let layer = 0; layer < this.params.n_layer; layer++) {
+      console.log(`     layer = ${layer}`);
 
-//    const buffers = this.model.layer_buffers[layer];
-      const buffers =       this.layer_buffers[layer];
+      const buffers = this.layer_buffers[layer];
 
-      {
-        const { passes, resultBuffer } = LayerNormBlock.newInstance(
+
+//    {
+        ({ passes, resultBuffer } = LayerNormBlock.newInstance(
           idx.length,
           this.params.n_embd,
           intermediateBuffer,
           buffers.normAttentionGammaBuffer,
           buffers.normAttentionBetaBuffer
-        );
+        ));
+
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
 
-      {
-        const { passes, resultBuffer } = AttentionBlock.newFusedInstance(
+      console.log(`     After LayerNormBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+
+ //   }
+
+ //   {
+        ({ passes, resultBuffer } = AttentionBlock.newFusedInstance(
           idx.length,
           this.params.n_embd,
           this.params.attention_scale,
@@ -239,71 +251,110 @@ class GPT {
           buffers.linearBiasBuffer,
           FastMatMulBlock,
           SoftmaxBlock
-        );
+        ));
 
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
 
-      {
-        const { passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer);
+      console.log(`     After AttentionBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
+
+//    {
+        ({ passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer));
         intermediateBuffer = resultBuffer;
-        residualBuffer = resultBuffer;
+        residualBuffer     = resultBuffer;
         this.computePasses.push(...passes);
-      }
-      {
-        const { passes, resultBuffer } = LayerNormBlock.newInstance(
+
+      console.log(`     After ResidualBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+ //   }
+
+ //   {
+        ({ passes, resultBuffer } = LayerNormBlock.newInstance(
           idx.length,
           this.params.n_embd,
           intermediateBuffer,
           buffers.normLinearGammaBuffer,
           buffers.normLinearBetaBuffer
-        );
+        ));
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
 
-      {
-        const { resultBuffer, passes } = FastMatMulBlock.newInstance(
+      console.log(`     After LayerNormBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
+
+//    {
+        ({ resultBuffer, passes } = FastMatMulBlock.newInstance(
           idx.length,
           this.params.hidden_size,
           this.params.n_embd,
           intermediateBuffer,
           buffers.firstLayerWeightsBuffer,
           buffers.firstLayerBiasBuffer
-        );
+        ));
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
-      {
 
-        const { resultBuffer, passes } = GeluBlock.newInstance(idx.length, this.params.hidden_size, intermediateBuffer);
+      console.log(`     After FastMatMulBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
+
+//    {
+
+        ({ resultBuffer, passes } = GeluBlock.newInstance(idx.length, this.params.hidden_size, intermediateBuffer));
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
 
-      {
-        const { resultBuffer, passes } = FastMatMulBlock.newInstance(
+      console.log(`     After GeluBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
+
+//    {
+        ({ resultBuffer, passes } = FastMatMulBlock.newInstance(
           idx.length,
           this.params.n_embd,
           this.params.hidden_size,
           intermediateBuffer,
           buffers.secondLayerWeightsBuffer,
           buffers.secondLayerBiasBuffer
-        );
+        ));
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
-      }
 
-      {
-        const { passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer);
+      console.log(`     After FastMatMulBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
+
+//    {
+        ({ passes, resultBuffer } = ResidualBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, residualBuffer));
         intermediateBuffer = resultBuffer;
-        residualBuffer = resultBuffer;
+        residualBuffer     = resultBuffer;
         this.computePasses.push(...passes);
-      }
+
+      console.log(`     After ResidualBlock`);
+      console.log(tq84_dumpObjectStructure(passes      ));
+      console.log(tq84_dumpObjectStructure(resultBuffer));
+
+//    }
     }
 
-    {
+ // After iteration over layers.
+
+//  {
       if (this.externalBuffer) {
         this.computePasses.push({
           flag: "copy",
@@ -314,28 +365,31 @@ class GPT {
           size: this.bufferSize(idx.length, this.params.n_embd),
         });
       }
-    }
+ // }
 
-    {
-      const { passes, resultBuffer } = LayerNormBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, this.normGammaBuffer, this.normBetaBuffer);
+ // {
+      ({ passes, resultBuffer } = LayerNormBlock.newInstance(idx.length, this.params.n_embd, intermediateBuffer, this.normGammaBuffer, this.normBetaBuffer));
       intermediateBuffer = resultBuffer;
       this.computePasses.push(...passes);
-    }
-    {
-      const { passes, resultBuffer } = DeEmbedBlock.newInstance(
+
+//  }
+
+ // {
+      ({ passes, resultBuffer } = DeEmbedBlock.newInstance(
         this.params.n_embd,
         this.params.vocab_size,
         this.params.vocab_chunk_size * this.params.vocab_chunk_instances,
         idx.length,
         this.params.vocab_chunk_size,
         intermediateBuffer,
-//      this.model.deEmbeddingsBuffers
-        this.      deEmbeddingsBuffers
-      );
+        this.deEmbeddingsBuffers
+      ));
       intermediateBuffer = resultBuffer;
       this.computePasses.push(...passes);
-    }
-    const resultBuffer = intermediateBuffer;
+
+//  }
+
+    resultBuffer = intermediateBuffer;
 
  // ---------------- Compute Passes ----------------
 
@@ -347,7 +401,9 @@ class GPT {
 //  console.log(`     commandEncoder = ${commandEncoder.constructor.name}`);
 
     for (const pass of this.computePasses) {
+       console.log('     model.run - next pass');
        if (pass.flag === "compute") {
+       
           const passEncoder = commandEncoder.beginComputePass();
           passEncoder.setPipeline(pass.pipeline);
 
@@ -672,6 +728,9 @@ class GPT {
     if (size > this.device.limits.maxStorageBufferBindingSize)
 //    console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
       console.warn("                Warning: Buffer size exceeds GPU limit");
+    if (size != dimX * dimY * dimZ * 4) {
+       throw new Error(`size = ${size}, ${dimX} * ${dimY} * ${dimZ} = ${size}`);
+    }
     return size;
   }
 }

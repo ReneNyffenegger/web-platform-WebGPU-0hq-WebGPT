@@ -448,7 +448,7 @@ GPT2Tokenizer
 
 
 }}}
------------------------------
+
 {{{ Parameters and constants
 
     n_ctx
@@ -456,6 +456,32 @@ GPT2Tokenizer
         
 
     top-k
+
+
+}}}
+
+{{{ model.run
+
+    EmbedBlock
+
+        residualBlock
+
+ layers  ---
+
+      LayerNormBlock
+      AttentionBlock (newFusedInstance)  used FastMatMulBlock and SoftmaxBlock
+
+      ResidualBlock
+      LayerNormBlock
+      FastMatMulBlock
+      GeluBlock
+      FastMatMulBlock
+      ResidualBlock
+
+   ---
+
+      LayerNormBlock
+      DeEmbedBlock
 
 
 }}}
