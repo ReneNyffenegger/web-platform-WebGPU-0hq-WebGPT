@@ -31,11 +31,11 @@ function destroyOperations() {
 }
 
 const bufferUsageDict = {
-  copy_from: GPUBufferUsage.COPY_SRC,
-  copy_to: GPUBufferUsage.COPY_DST,
-  storage: GPUBufferUsage.STORAGE,
-  uniform: GPUBufferUsage.UNIFORM,
-  map_read: GPUBufferUsage.MAP_READ,
+   copy_from: GPUBufferUsage.COPY_SRC,
+   copy_to  : GPUBufferUsage.COPY_DST,
+   storage  : GPUBufferUsage.STORAGE,
+   uniform  : GPUBufferUsage.UNIFORM,
+   map_read : GPUBufferUsage.MAP_READ,
 };
 
 // ---------------- Helper Functions ----------------

@@ -33,6 +33,12 @@ function tq84_dumpObjectStructure(obj, indent=0) {
    return '<' + typeof(obj) + '>';
 }
 
+function tq84_assert(shouldBeTrue, textIfNotTrue) {
+   if (! shouldBeTrue) throw new Error(textIfNotTrue);
+}
+function tq84_assertClass(obj, className) {
+   tq84_assert(obj.constructor.name == className, `expected className = ${className}, but got ${obj.constructor.name}`);
+}
 
 
 
@@ -229,9 +235,9 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After LayerNormBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After LayerNormBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 
  //   }
@@ -256,9 +262,9 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After AttentionBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After AttentionBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
 
@@ -268,9 +274,9 @@ class GPT {
         residualBuffer     = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After ResidualBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After ResidualBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
  //   }
 
@@ -285,27 +291,28 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After LayerNormBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After LayerNormBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
 
 //    {
         ({ resultBuffer, passes } = FastMatMulBlock.newInstance(
-          idx.length,
-          this.params.hidden_size,
-          this.params.n_embd,
-          intermediateBuffer,
-          buffers.firstLayerWeightsBuffer,
-          buffers.firstLayerBiasBuffer
+          idx.length,                       // rows
+          this.params.hidden_size,          // cols
+          this.params.n_embd,               // shared
+          intermediateBuffer,               // inputBuffer
+          buffers.firstLayerWeightsBuffer,  // weightsBuffer
+          buffers.firstLayerBiasBuffer      // biasBuffer
         ));
+
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After FastMatMulBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After FastMatMulBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
 
@@ -315,9 +322,9 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After GeluBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After GeluBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
 
@@ -333,9 +340,9 @@ class GPT {
         intermediateBuffer = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After FastMatMulBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After FastMatMulBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
 
@@ -345,9 +352,9 @@ class GPT {
         residualBuffer     = resultBuffer;
         this.computePasses.push(...passes);
 
-      console.log(`     After ResidualBlock`);
-      console.log(tq84_dumpObjectStructure(passes      ));
-      console.log(tq84_dumpObjectStructure(resultBuffer));
+//q   console.log(`     After ResidualBlock`);
+//q   console.log(tq84_dumpObjectStructure(passes      ));
+//q   console.log(tq84_dumpObjectStructure(resultBuffer));
 
 //    }
     }
@@ -558,10 +565,12 @@ class GPT {
       }
       paddedArray.set(embeddingWeights.subarray(offset * this.params.n_embd, offset * this.params.n_embd + size * this.params.n_embd));
 
-      this.embeddingsBuffers.push(this.initTensor(paddedArray, [this.params.vocab_chunk_size, this.params.n_embd], ["copy_from"]));
+//    this.embeddingsBuffers.push(this.initTensor(paddedArray, [this.params.vocab_chunk_size, this.params.n_embd], ["copy_from"]));
+      this.embeddingsBuffers.push(this.initTensor(paddedArray,                                                     ["copy_from"]));
 
       const chunk = transpose(paddedArray, this.params.vocab_chunk_size, this.params.n_embd); // Use GPU perhaps?
-      this.deEmbeddingsBuffers.push(this.initTensor(chunk, [this.params.n_embd, this.params.vocab_chunk_size], ["storage"]));
+//    this.deEmbeddingsBuffers.push(this.initTensor(chunk, [this.params.n_embd, this.params.vocab_chunk_size], ["storage"]));
+      this.deEmbeddingsBuffers.push(this.initTensor(chunk,                                                     ["storage"]));
     }
 
   }
@@ -569,7 +578,8 @@ class GPT {
   async loadPositionalEmbeddings() {
 //  console.log('      loadPositionalEmbeddings');
     const posEmbeddings = await fetchBin2Float32Array(`${this.weightsFolder}/transformer.wpe.weight_gpt.bin`);
-    this.posEmbdBuffer = this.initTensor(posEmbeddings, [this.params.n_ctx, this.params.n_embd], ["copy_from"]);
+//  this.posEmbdBuffer = this.initTensor(posEmbeddings, [this.params.n_ctx, this.params.n_embd], ["copy_from"]);
+    this.posEmbdBuffer = this.initTensor(posEmbeddings,                                          ["copy_from"]);
 
   }
 
@@ -659,9 +669,12 @@ class GPT {
     const kWeights = transpose(data.subarray(dims[0] * dims[0]    , dims[0] * dims[0] * 2), dims[0], dims[0]);
     const vWeights = transpose(data.subarray(dims[0] * dims[0] * 2, dims[0] * dims[0] * 3), dims[0], dims[0]);
 
-    const qWeightsBuffer = this.initTensor(qWeights, [dims[0], dims[0]], ops);
-    const kWeightsBuffer = this.initTensor(kWeights, [dims[0], dims[0]], ops);
-    const vWeightsBuffer = this.initTensor(vWeights, [dims[0], dims[0]], ops);
+//  const qWeightsBuffer = this.initTensor(qWeights, [dims[0], dims[0]], ops);
+//  const kWeightsBuffer = this.initTensor(kWeights, [dims[0], dims[0]], ops);
+//  const vWeightsBuffer = this.initTensor(vWeights, [dims[0], dims[0]], ops);
+    const qWeightsBuffer = this.initTensor(qWeights,                     ops);
+    const kWeightsBuffer = this.initTensor(kWeights,                     ops);
+    const vWeightsBuffer = this.initTensor(vWeights,                     ops);
 
     return [qWeightsBuffer, kWeightsBuffer, vWeightsBuffer];
   }
@@ -673,9 +686,12 @@ class GPT {
     const kBias = data.subarray(dims[0], dims[0] * 2);
     const vBias = data.subarray(dims[0] * 2, dims[0] * 3);
 
-    const qBiasBuffer = this.initTensor(qBias, [dims[0]], ops);
-    const kBiasBuffer = this.initTensor(kBias, [dims[0]], ops);
-    const vBiasBuffer = this.initTensor(vBias, [dims[0]], ops);
+//  const qBiasBuffer = this.initTensor(qBias, [dims[0]], ops);
+//  const kBiasBuffer = this.initTensor(kBias, [dims[0]], ops);
+//  const vBiasBuffer = this.initTensor(vBias, [dims[0]], ops);
+    const qBiasBuffer = this.initTensor(qBias,            ops);
+    const kBiasBuffer = this.initTensor(kBias,            ops);
+    const vBiasBuffer = this.initTensor(vBias,            ops);
 
     return [qBiasBuffer, kBiasBuffer, vBiasBuffer];
   }
@@ -683,10 +699,11 @@ class GPT {
   async fetchAndInitTensor(url, dims, ops) {
 //  console.log("Fetching and initializing tensor...", url);
     const data = await fetchBin2Float32Array(url);
-    return this.initTensor(data, dims, ops);
+//  return this.initTensor(data, dims, ops);
+    return this.initTensor(data,       ops);
   }
 
-  initTensor(data, dims, ops) {
+  initTensor_old(data, dims, ops) {
 //
 //  initTensor creates a GPUBuffer and returns it.
 //
@@ -695,26 +712,72 @@ class GPT {
 //  ops:  an Array
 //
 
-    let tq84_size = this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1);
-    let tq84 = {
-      size: tq84_size,
-      usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
-      mappedAtCreation: true,
-    };
+     tq84_assertClass(data, 'Float32Array');
 
-//  console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
-//  console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
+     let tq84_size = this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1);
 
-    const buffer = this.device.createBuffer({
-      size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
-      usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
-      mappedAtCreation: true,
-    });
+     tq84_assert(tq84_size = data.length * 4, 'tq84_size = data.length * 4');
 
-    new Float32Array(buffer.getMappedRange()).set(data);
-    buffer.unmap();
-    this.unloadDeletionStack.push(buffer);
-    return buffer;
+     let tq84 = {
+       size: tq84_size,
+       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+       mappedAtCreation: true,
+     };
+
+//   console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
+     console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
+
+     const buffer = this.device.createBuffer({
+       size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
+       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+       mappedAtCreation: true,
+     });
+
+     new Float32Array(buffer.getMappedRange()).set(data);
+     buffer.unmap();
+
+     this.unloadDeletionStack.push(buffer);
+
+     return buffer;
+  }
+
+  initTensor(data, ops) {
+//
+//  initTensor creates a GPUBuffer and returns it.
+//
+//  data: a  Float32Array
+//  ops:  an Array
+//
+
+     tq84_assertClass(data, 'Float32Array');
+
+//   let tq84_size = this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1);
+
+//   tq84_assert(tq84_size = data.length * 4, 'tq84_size = data.length * 4');
+
+     let tq84 = {
+       size: data.length * 4, // 4 bytes per float
+       usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+       mappedAtCreation: true,
+     };
+
+//   console.log(`          initTensor, data = ${data.constructor.name}, dims.length = ${dims.length}, ops.length = ${ops.length}`, tq84);
+//   console.log(`          initTensor, data.length * 4 = ${data.length * 4}, size = ${tq84_size}`);
+
+//   const buffer = this.device.createBuffer({
+//     size: this.bufferSize(dims[0], dims[1] || 1, dims[2] || 1),
+//     usage: ops.map((u) => bufferUsageDict[u]).reduce((a, b) => a | b),
+//     mappedAtCreation: true,
+//   });
+
+     const buffer = this.device.createBuffer(tq84);
+
+     new Float32Array(buffer.getMappedRange()).set(data);
+     buffer.unmap();
+
+     this.unloadDeletionStack.push(buffer);
+
+     return buffer;
   }
 
   unloadBuffers() {
@@ -723,14 +786,20 @@ class GPT {
   }
 
   bufferSize(dimX, dimY = 1, dimZ = 1) {
-    const size = Math.ceil((dimX * dimY * dimZ * Float32Array.BYTES_PER_ELEMENT) / this.minBufferOffset) * this.minBufferOffset;
-//  console.log(`            buffersSize = ${Math.round(100*size/1024/1024)/100} MB = ${dimX} * ${dimY} * ${dimZ} * 4 (Float32Array.BYTES_PER_ELEMENT = ${Float32Array.BYTES_PER_ELEMENT}).`)
-    if (size > this.device.limits.maxStorageBufferBindingSize)
-//    console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
-      console.warn("                Warning: Buffer size exceeds GPU limit");
-    if (size != dimX * dimY * dimZ * 4) {
-       throw new Error(`size = ${size}, ${dimX} * ${dimY} * ${dimZ} = ${size}`);
-    }
-    return size;
+     const size = Math.ceil((dimX * dimY * dimZ * Float32Array.BYTES_PER_ELEMENT) / this.minBufferOffset) * this.minBufferOffset;
+
+//   console.log(`            buffersSize = ${Math.round(100*size/1024/1024)/100} MB = ${dimX} * ${dimY} * ${dimZ} * 4 (Float32Array.BYTES_PER_ELEMENT = ${Float32Array.BYTES_PER_ELEMENT}).`)
+     if (size > this.device.limits.maxStorageBufferBindingSize) {
+//      console.warn("Warning: Buffer size calc result exceeds GPU limit, are you using this value for a tensor size?", dimX, dimY, dimZ, size);
+        console.warn(`                Warning: Buffer size ${Math.round(size/1024/1024,2)} MB exceeds GPU limit of ${this.device.limits.maxStorageBufferBindingSize/1024/1024} MB`);
+     }
+     if (size != dimX * dimY * dimZ * 4) {
+     //
+     // this.minBufferOffset is set to 1, so I don't expected the following
+     // error to be thrown:
+     //
+        throw new Error(`size = ${size}, ${dimX} * ${dimY} * ${dimZ} = ${size}`);
+     }
+     return size;
   }
 }
