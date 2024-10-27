@@ -83,6 +83,10 @@ Have you forgotten I built WebGPT?&#13;&#10;</textarea
       async function startGeneration() {
         setTextareaDisabled(true);
 
+        tq84_log_ = new tq84_log();
+        await tq84_log_.init('gpu-log.hlg', 'gpu-log');
+        await tq84_log_.log('startGeneration');
+
         const prompt = promptTextarea.value || " ";
         const numTokens = nofTokensToGenerate.value;
 

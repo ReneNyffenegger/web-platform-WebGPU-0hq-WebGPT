@@ -33,6 +33,8 @@ function tq84_dumpObjectStructure(obj, indent=0) {
    return '<' + typeof(obj) + '>';
 }
 
+// ---------------------------------------------------
+
 function tq84_assert(shouldBeTrue, textIfNotTrue) {
    if (! shouldBeTrue) throw new Error(textIfNotTrue);
 }
@@ -40,7 +42,23 @@ function tq84_assertClass(obj, className) {
    tq84_assert(obj.constructor.name == className, `expected className = ${className}, but got ${obj.constructor.name}`);
 }
 
+// ---------------------------------------------------
 
+class tq84_log {
+
+   async init(suggestedName, id) {
+      const fileh = await window.showSaveFilePicker( {id: id, suggestedName: suggestedName});
+      this.outstream = await fileh.createWritable();
+   }
+
+   async log(txt) {
+      const e = new Error('stack trace');
+      alert('  '.repeat(e.stack.length) + txt);
+      await this.outstream.write('  '.repeat(e.stack.length) + txt);
+   }
+}
+
+// ---------------------------------------------------
 
 class GPT {
   constructor(folder, type) {
